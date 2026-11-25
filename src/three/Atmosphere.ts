@@ -91,8 +91,13 @@ export class Atmosphere {
     this.mistPlanes.forEach((mist) => {
       const baseX = Number(mist.userData.baseX || 0);
       const phase = Number(mist.userData.phase || 0);
-      mist.position.x = baseX + Math.sin(elapsedSec * 0.06 + phase) * 1.6;
+      mist.position.x = baseX + Math.sin(elapsedSec * 0.09 + phase) * 2.2;
+      (mist.material as THREE.MeshBasicMaterial).opacity =
+        0.19 + Math.sin(elapsedSec * 0.35 + phase) * 0.05;
     });
+
+    (this.fireflies.material as THREE.PointsMaterial).opacity =
+      0.75 + Math.sin(elapsedSec * 1.9) * 0.18;
 
     const attr = this.fireflies.geometry.getAttribute('position') as THREE.BufferAttribute;
     const count = this.fireflies.geometry.drawRange.count;
@@ -100,9 +105,9 @@ export class Atmosphere {
       const bx = this.fireflyBase[i * 3];
       const by = this.fireflyBase[i * 3 + 1];
       const bz = this.fireflyBase[i * 3 + 2];
-      this.fireflyPositions[i * 3] = bx + Math.sin(elapsedSec * 0.55 + i) * 0.35;
-      this.fireflyPositions[i * 3 + 1] = by + Math.cos(elapsedSec * 0.7 + i * 1.3) * 0.25;
-      this.fireflyPositions[i * 3 + 2] = bz + Math.sin(elapsedSec * 0.45 + i * 0.8) * 0.3;
+      this.fireflyPositions[i * 3] = bx + Math.sin(elapsedSec * 0.65 + i) * 0.48;
+      this.fireflyPositions[i * 3 + 1] = by + Math.cos(elapsedSec * 0.85 + i * 1.3) * 0.32;
+      this.fireflyPositions[i * 3 + 2] = bz + Math.sin(elapsedSec * 0.52 + i * 0.8) * 0.42;
     }
     attr.needsUpdate = true;
   }

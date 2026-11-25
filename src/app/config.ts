@@ -1,9 +1,9 @@
 export const APP_CONFIG = {
   maxInscriptionLength: 120,
   minInscriptionLength: 3,
-  graveDateLabel: 'Dikuburkan:',
-  graveDateLocale: 'id-ID',
+  graveDateLabel: 'Buried:',
+  graveDateLocale: 'en-US',
   tagline: 'Write it. Bury it. Let it rest.',
   maxPlaqueCache: 48,
-  farPlane: 120,
+  farPlane: 360,
 } as const;

@@ -29,9 +29,9 @@ describe('Seed data integrity & neutral styling', () => {
     const hero = DEMO_GRAVES.find((g) => g.grave_number === 291);
     const left = DEMO_GRAVES.find((g) => g.grave_number === 290);
     const right = DEMO_GRAVES.find((g) => g.grave_number === 289);
-    expect(hero?.inscription).toBe('Seharusnya aku tidak membeli itu.');
-    expect(left?.inscription).toBe('Terlalu percaya sama dia...');
-    expect(right?.inscription).toBe('Mungkin aku bisa lebih sabar.');
+    expect(hero?.inscription).toBe('I should not have bought that.');
+    expect(left?.inscription).toBe('Trusted them far too easily...');
+    expect(right?.inscription).toBe('Maybe I could have been more patient.');
 
     for (const g of DEMO_GRAVES) {
       expect(['arched', 'slim', 'pillar', 'scroll']).toContain(g.grave_style);

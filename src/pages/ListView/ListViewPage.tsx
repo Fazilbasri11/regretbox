@@ -104,7 +104,7 @@ export function ListViewPage({ onOpenBury }: ListViewPageProps) {
                   “{g.inscription}”
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)' }}>
-                  <span>Dikuburkan: {formatBurialDate(g.created_at)}</span>
+                  <span>Buried: {formatBurialDate(g.created_at)}</span>
                   <Link to={`/grave/${String(g.grave_number).padStart(5, '0')}`}>Inspect →</Link>
                 </div>
               </article>

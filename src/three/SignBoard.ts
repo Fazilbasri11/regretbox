@@ -89,4 +89,10 @@ export class SignBoard {
     this.boardMat.emissiveIntensity = hover ? 1.55 : 1.15;
     this.hitMesh.scale.setScalar(hover ? 1.03 : 1.0);
   }
+
+  public update(elapsedSec: number, reducedMotion: boolean): void {
+    if (reducedMotion || this.hovered) return;
+    this.boardMat.emissiveIntensity = 1.12 + Math.sin(elapsedSec * 2.1) * 0.12;
+    this.hitMesh.rotation.z = 0.08 + Math.sin(elapsedSec * 1.15) * 0.008;
+  }
 }

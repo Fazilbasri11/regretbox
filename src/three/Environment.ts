@@ -69,6 +69,9 @@ function buildBareTreeBranchGroup(material: THREE.Material): THREE.Group {
 export class Environment {
   public grassMaterial: THREE.MeshStandardMaterial | null = null;
   private grassUniforms = { uTime: { value: 0 } };
+  private fgTree: THREE.Group | null = null;
+  private chapelLight: THREE.PointLight | null = null;
+  private backgroundTrees: THREE.InstancedMesh | null = null;
 
   constructor(scene: THREE.Scene, assets: AssetLoader, tier: QualityTier, maxZ: number) {
     // 1. Rolling-hill terrain ("pundak-pundak bukit kecil")
@@ -353,9 +356,9 @@ export class Environment {
     pavilion.add(finialBase, finialTip);
 
     if (tier !== 'low') {
-      const chapelLight = new THREE.PointLight('#FFB45A', 1.75, 12, 2);
-      chapelLight.position.set(0, 2.6, 5.6);
-      pavilion.add(chapelLight);
+      this.chapelLight = new THREE.PointLight('#FFB45A', 1.75, 12, 2);
+      this.chapelLight.position.set(0, 2.6, 5.6);
+      pavilion.add(this.chapelLight);
     }
 
     scene.add(pavilion);
@@ -376,8 +379,18 @@ export class Environment {
     fgTree.rotation.y = 0.35;
     fgTree.scale.set(0.95, 0.95, 0.95);
     scene.add(fgTree);
+    this.fgTree = fgTree;
 
     const foliageMat = new THREE.MeshStandardMaterial({ color: 0x162230, roughness: 0.94 });
+    foliageMat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = this.grassUniforms.uTime;
+      shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+         float treeSway = sin(uTime * 0.75 + instanceMatrix[3][0] * 0.3) * 0.045 * max(0.0, position.y - 1.5);
+         transformed.x += treeSway;`,
+      );
+    };
     const c1 = new THREE.IcosahedronGeometry(1.55, 1);
     c1.scale(1.15, 1.35, 1.0);
     c1.translate(0, 4.0, 0);
@@ -416,20 +429,22 @@ export class Environment {
     }
     trees.instanceMatrix.needsUpdate = true;
     scene.add(trees);
+    this.backgroundTrees = trees;
   }
 
   private buildGrassAndFlowers(scene: THREE.Scene, tier: QualityTier): void {
-    // Optimized foreground-focused tapered grass blades
+    // Organic clumped wild grass ("ilalang") with randomized height, bend, spacing & tint
     const bladeShape = new THREE.Shape();
-    bladeShape.moveTo(-0.026, 0);
-    bladeShape.lineTo(0.026, 0);
-    bladeShape.lineTo(0.002, 0.34);
+    bladeShape.moveTo(-0.024, 0);
+    bladeShape.lineTo(0.024, 0);
+    bladeShape.lineTo(0.008, 0.18);
+    bladeShape.lineTo(0.0, 0.38);
     bladeShape.closePath();
     const bladeGeo = new THREE.ShapeGeometry(bladeShape, 1);
 
     const grassMat = new THREE.MeshStandardMaterial({
-      color: 0x32523c,
-      roughness: 0.82,
+      color: 0xffffff,
+      roughness: 0.84,
       side: THREE.DoubleSide,
     });
     grassMat.onBeforeCompile = (shader) => {
@@ -437,31 +452,73 @@ export class Environment {
       shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
-         float sway = sin(uTime * 1.6 + instanceMatrix[3][0] * 0.9 + instanceMatrix[3][2] * 0.7) * 0.065 * (position.y * 2.5);
-         transformed.x += sway;`,
+         float gust = sin(uTime * 1.45 + instanceMatrix[3][0] * 0.55 + instanceMatrix[3][2] * 0.45)
+                    + 0.45 * cos(uTime * 2.3 + instanceMatrix[3][0] * 1.2);
+         float hFactor = clamp(position.y / 0.38, 0.0, 1.0);
+         transformed.x += gust * 0.055 * hFactor * hFactor;
+         transformed.z += cos(uTime * 1.1 + instanceMatrix[3][2] * 0.6) * 0.025 * hFactor;`,
       );
     };
     this.grassMaterial = grassMat;
 
-    const grassCount = tier === 'high' ? 750 : tier === 'medium' ? 450 : 220;
+    const grassCount = tier === 'high' ? 850 : tier === 'medium' ? 500 : 240;
     const grassMesh = new THREE.InstancedMesh(bladeGeo, grassMat, grassCount);
     const dummy = new THREE.Object3D();
+    const tint = new THREE.Color();
+
+    // Seeded Mulberry32 PRNG for completely organic, non-grid placement
+    let seed = 48271;
+    const rand = () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
 
     let placed = 0;
-    for (let i = 0; i < grassCount * 2 && placed < grassCount; i += 1) {
-      const gx = (((i * 73) % 1000) / 1000 - 0.5) * 20;
-      const gz = 5.5 - (((i * 197) % 1000) / 1000) * 26;
-      if (Math.abs(gx - getPathCenterX(gz)) < PATH_HALF_WIDTH + 0.25) continue;
+    let guard = 0;
+    while (placed < grassCount && guard < 1200) {
+      guard += 1;
+      // Pick a random tuft/clump center across foreground & mid-ground hills
+      const cx = (rand() - 0.5) * 24;
+      const cz = 6.0 - rand() * 34;
+      const distFromPath = Math.abs(cx - getPathCenterX(cz));
+      if (distFromPath < PATH_HALF_WIDTH + 0.18) continue;
 
-      dummy.position.set(gx, getTerrainHeight(gx, gz) - 0.02, gz);
-      dummy.rotation.y = (i * 0.9) % Math.PI;
-      dummy.scale.set(1, 0.7 + (i % 5) * 0.16, 1);
-      dummy.updateMatrix();
-      grassMesh.setMatrixAt(placed, dummy.matrix);
-      placed += 1;
+      const bladesInTuft = 3 + Math.floor(rand() * 5); // 3-7 blades per natural clump
+      const clumpHeightBase = 0.45 + rand() * 0.85;
+
+      for (let b = 0; b < bladesInTuft && placed < grassCount; b += 1) {
+        const angle = rand() * Math.PI * 2;
+        const radius = rand() * 0.38;
+        const gx = cx + Math.cos(angle) * radius;
+        const gz = cz + Math.sin(angle) * radius;
+        if (Math.abs(gx - getPathCenterX(gz)) < PATH_HALF_WIDTH + 0.12) continue;
+
+        const hScale = clumpHeightBase * (0.65 + rand() * 0.75); // 0.3 .. 1.65 natural variation
+        const wScale = 0.65 + rand() * 0.7;
+
+        dummy.position.set(gx, getTerrainHeight(gx, gz) - 0.03, gz);
+        dummy.rotation.set(
+          (rand() - 0.5) * 0.36, // organic forward/back lean
+          rand() * Math.PI * 2,
+          (rand() - 0.5) * 0.28, // organic side bend
+        );
+        dummy.scale.set(wScale, hScale, 1);
+        dummy.updateMatrix();
+        grassMesh.setMatrixAt(placed, dummy.matrix);
+
+        // Varied forest green -> moonlit sage tint per blade
+        const gVal = 0.26 + rand() * 0.16;
+        tint.setRGB(gVal * 0.58, gVal, gVal * 0.72);
+        grassMesh.setColorAt(placed, tint);
+        placed += 1;
+      }
     }
+
     grassMesh.count = placed;
     grassMesh.instanceMatrix.needsUpdate = true;
+    if (grassMesh.instanceColor) grassMesh.instanceColor.needsUpdate = true;
     scene.add(grassMesh);
 
     const floretGeo = new THREE.SphereGeometry(0.036, 5, 4);
@@ -539,8 +596,17 @@ export class Environment {
   }
 
   public update(elapsedSec: number, reducedMotion: boolean): void {
-    if (!reducedMotion) {
-      this.grassUniforms.uTime.value = elapsedSec;
+    if (reducedMotion) return;
+    this.grassUniforms.uTime.value = elapsedSec;
+    if (this.fgTree) {
+      this.fgTree.rotation.z = Math.sin(elapsedSec * 0.65) * 0.014;
+      this.fgTree.rotation.x = Math.cos(elapsedSec * 0.48) * 0.008;
+    }
+    if (this.chapelLight) {
+      this.chapelLight.intensity = 1.65 + Math.sin(elapsedSec * 3.1) * 0.14;
+    }
+    if (this.backgroundTrees) {
+      this.backgroundTrees.rotation.z = Math.sin(elapsedSec * 0.4) * 0.002;
     }
   }
 }

@@ -293,6 +293,15 @@ export class GraveManager {
     return best;
   }
 
+  public update(elapsedSec: number, reducedMotion: boolean): void {
+    if (!this.highlightRing.visible || reducedMotion) return;
+    const pulse = 1 + Math.sin(elapsedSec * 2.6) * 0.05;
+    this.highlightRing.scale.setScalar(pulse);
+    (this.highlightRing.material as THREE.MeshBasicMaterial).opacity =
+      0.55 + Math.sin(elapsedSec * 2.6) * 0.18;
+    this.highlightLight.intensity = 1.45 + Math.sin(elapsedSec * 3.8) * 0.25;
+  }
+
   public dispose(): void {
     this.clearInstances();
     this.plaqueCache.dispose();

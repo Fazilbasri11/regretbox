@@ -190,11 +190,15 @@ export class Lanterns {
     for (const u of this.units) {
       const flicker = reducedMotion
         ? 1.0
-        : 0.94 + Math.sin(elapsedSec * 7.2 + u.phase) * 0.04 + Math.cos(elapsedSec * 11.4 + u.phase) * 0.03;
+        : 0.92 + Math.sin(elapsedSec * 7.2 + u.phase) * 0.05 + Math.cos(elapsedSec * 11.4 + u.phase) * 0.04;
       if (u.light) {
         u.light.intensity = u.baseIntensity * flicker;
       }
-      u.sprite.material.opacity = 0.5 * flicker;
+      u.sprite.material.opacity = 0.48 * flicker;
+      const baseScale = (u.sprite.userData.baseScale as number) || u.sprite.scale.x;
+      u.sprite.userData.baseScale = baseScale;
+      const s = baseScale * (0.96 + flicker * 0.04);
+      u.sprite.scale.set(s, s, 1);
     }
   }
 }

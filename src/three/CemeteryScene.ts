@@ -62,7 +62,7 @@ export class CemeteryScene {
     const w = Math.max(container.clientWidth, 320);
     const h = Math.max(container.clientHeight, 320);
 
-    this.camera = new THREE.PerspectiveCamera(46, w / h, 0.2, 155);
+    this.camera = new THREE.PerspectiveCamera(46, w / h, 0.2, 360);
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance',
@@ -201,10 +201,12 @@ export class CemeteryScene {
 
       this.desktopCtrl.update(dt);
       this.mobileCtrl.update(dt);
-      this.sky.update(elapsedSec, reduced);
+      this.sky.update(elapsedSec, this.camera.position, reduced);
       this.atmosphere.update(elapsedSec, reduced);
       this.lanterns.update(elapsedSec, reduced);
       this.env.update(elapsedSec, reduced);
+      this.graveMgr.update(elapsedSec, reduced);
+      this.signBoard.update(elapsedSec, reduced);
 
       plaqueTimer += dt;
       if (plaqueTimer >= 0.25) {
