@@ -113,5 +113,7 @@ export const DEMO_GRAVES: Grave[] = SEED_ENTRIES.map(([num, inscription, created
     grave_style: placement.graveStyle,
     created_at,
     is_demo: true,
+    flower_count: 0,
+    flower_color: null,
   };
 });

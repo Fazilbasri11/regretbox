@@ -2,6 +2,8 @@ export type CemeteryZone = 'entrance' | 'new_cemetery' | 'old_cemetery' | 'memor
 
 export type GraveStyle = 'arched' | 'slim' | 'pillar' | 'scroll';
 
+export type RoseColor = 'white' | 'red';
+
 export interface Grave {
   id: string;
   grave_number: number;
@@ -15,6 +17,8 @@ export interface Grave {
   grave_style: GraveStyle;
   created_at: string;
   is_demo: boolean;
+  flower_count?: number;
+  flower_color?: RoseColor | null;
 }
 
 export interface CemeteryStats {

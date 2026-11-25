@@ -68,9 +68,11 @@ function buildBareTreeBranchGroup(material: THREE.Material): THREE.Group {
 
 export class Environment {
   public grassMaterial: THREE.MeshStandardMaterial | null = null;
+  public doorHitMesh!: THREE.Mesh;
   private grassUniforms = { uTime: { value: 0 } };
   private fgTree: THREE.Group | null = null;
   private chapelLight: THREE.PointLight | null = null;
+  private doorMat: THREE.MeshStandardMaterial | null = null;
   private backgroundTrees: THREE.InstancedMesh | null = null;
 
   constructor(scene: THREE.Scene, assets: AssetLoader, tier: QualityTier, maxZ: number) {
@@ -244,12 +246,12 @@ export class Environment {
   }
 
   private buildStonePavilion(scene: THREE.Scene, assets: AssetLoader, tier: QualityTier): void {
-    const cx = 15.5;
-    const cz = -32.0;
+    const cx = 13.8;
+    const cz = -33.5;
     const cy = getTerrainHeight(cx, cz);
     const pavilion = new THREE.Group();
-    pavilion.position.set(cx, cy - 0.15, cz);
-    pavilion.rotation.y = -0.44;
+    pavilion.position.set(cx, cy + 0.45, cz);
+    pavilion.rotation.y = -0.38;
 
     const wallMat = new THREE.MeshStandardMaterial({
       map: assets.stonePBR.map,
@@ -258,6 +260,12 @@ export class Environment {
       color: 0x7b8499,
       roughness: 0.88,
     });
+
+    // Raised stone terrace foundation so the chapel doorway sits clearly above mid-ground hills
+    const plinthFoundation = new THREE.Mesh(new THREE.BoxGeometry(8.2, 1.3, 10.6), wallMat);
+    plinthFoundation.position.set(0, -0.6, 0.2);
+    plinthFoundation.receiveShadow = true;
+    pavilion.add(plinthFoundation);
     const roofMat = new THREE.MeshStandardMaterial({
       color: 0x2f384a,
       roughness: 0.35,
@@ -335,10 +343,33 @@ export class Environment {
     mullionR.position.set(0.34, 3.85, 4.53);
     pavilion.add(mullionV, mullionL, mullionR);
 
-    const doorWin = new THREE.Mesh(winGeo, glowWinMat);
+    const doorMat = glowWinMat.clone();
+    this.doorMat = doorMat;
+    const doorWin = new THREE.Mesh(winGeo, doorMat);
     doorWin.scale.set(0.88, 0.78, 1);
     doorWin.position.set(0, 0.25, 4.5);
     pavilion.add(doorWin);
+
+    // Door surround mullions + handle so the chapel door clearly invites clicking ("About")
+    const doorBarL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.15, 0.14), roofMat);
+    doorBarL.position.set(-0.62, 1.25, 4.52);
+    const doorBarR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.15, 0.14), roofMat);
+    doorBarR.position.set(0.62, 1.25, 4.52);
+    const doorRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.09, 0.025, 6, 12),
+      new THREE.MeshStandardMaterial({ color: 0xe8a84b, roughness: 0.35, metalness: 0.7 }),
+    );
+    doorRing.position.set(0.32, 1.22, 4.58);
+    pavilion.add(doorBarL, doorBarR, doorRing);
+
+    const doorHit = new THREE.Mesh(
+      new THREE.BoxGeometry(2.15, 3.0, 1.2),
+      new THREE.MeshBasicMaterial({ visible: false }),
+    );
+    doorHit.position.set(0, 1.45, 4.65);
+    doorHit.userData = { isAboutDoor: true };
+    pavilion.add(doorHit);
+    this.doorHitMesh = doorHit;
 
     for (const wz of [-1.6, 1.6]) {
       const sw = new THREE.Mesh(winGeo, glowWinMat);
@@ -605,6 +636,12 @@ export class Environment {
     }
     daisyMesh.instanceMatrix.needsUpdate = true;
     scene.add(daisyMesh);
+  }
+
+  public setDoorHovered(hovered: boolean): void {
+    if (this.doorMat) {
+      this.doorMat.emissiveIntensity = hovered ? 2.35 : 1.65;
+    }
   }
 
   public update(elapsedSec: number, reducedMotion: boolean): void {

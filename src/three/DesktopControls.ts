@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import type { Grave } from '../types/grave';
 import type { CameraController } from './CameraController';
+import type { Environment } from './Environment';
 import type { GraveManager } from './GraveManager';
 import type { SignBoard } from './SignBoard';
 
 export interface DesktopControlsCallbacks {
   onSelectGrave: (grave: Grave) => void;
   onOpenBurySign: () => void;
+  onOpenAbout: () => void;
   onEscape: () => void;
   onUserMoved: () => void;
 }
@@ -25,6 +27,7 @@ export class DesktopControls {
     private cameraCtrl: CameraController,
     private graveManager: GraveManager,
     private signBoard: SignBoard,
+    private env: Environment,
     private callbacks: DesktopControlsCallbacks,
   ) {
     window.addEventListener('keydown', this.handleKeyDown);
@@ -82,23 +85,23 @@ export class DesktopControls {
       return;
     }
 
-    // Hover feedback for wooden sign & stones
+    // Hover feedback for wooden sign, chapel door & stones (depth-sorted)
     const rect = this.domElement.getBoundingClientRect();
     this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.cameraCtrl.camera);
 
-    const signHits = this.raycaster.intersectObject(this.signBoard.hitMesh, false);
-    const isOverSign = signHits.length > 0;
+    const hits = this.raycaster.intersectObjects(
+      [this.signBoard.hitMesh, this.env.doorHitMesh, ...this.graveManager.getHitboxes()],
+      false,
+    );
+    const first = hits[0]?.object;
+    const isOverSign = Boolean(first?.userData?.isBurySign);
+    const isOverDoor = Boolean(first?.userData?.isAboutDoor);
+
     this.signBoard.setHovered(isOverSign);
-
-    if (isOverSign) {
-      this.domElement.style.cursor = 'pointer';
-      return;
-    }
-
-    const stoneHits = this.raycaster.intersectObjects(this.graveManager.getHitboxes(), false);
-    this.domElement.style.cursor = stoneHits.length > 0 ? 'pointer' : 'grab';
+    this.env.setDoorHovered(isOverDoor);
+    this.domElement.style.cursor = hits.length > 0 ? 'pointer' : 'grab';
   };
 
   private handlePointerUp = (e: PointerEvent) => {
@@ -113,7 +116,7 @@ export class DesktopControls {
 
     this.raycaster.setFromCamera(this.pointer, this.cameraCtrl.camera);
     const hits = this.raycaster.intersectObjects(
-      [this.signBoard.hitMesh, ...this.graveManager.getHitboxes()],
+      [this.signBoard.hitMesh, this.env.doorHitMesh, ...this.graveManager.getHitboxes()],
       false,
     );
     if (hits.length === 0) return;
@@ -121,6 +124,10 @@ export class DesktopControls {
     const hitObj = hits[0].object;
     if (hitObj.userData?.isBurySign) {
       this.callbacks.onOpenBurySign();
+      return;
+    }
+    if (hitObj.userData?.isAboutDoor) {
+      this.callbacks.onOpenAbout();
       return;
     }
     const grave = hitObj.userData?.grave as Grave | undefined;

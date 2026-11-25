@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { checkRateLimit, getSupabaseAdmin, sendError } from '../_lib/supabaseAdmin.js';
 
 const COLUMNS =
-  'id, grave_number, slot_index, zone, inscription, pos_x, pos_y, pos_z, rotation_y, grave_style, created_at, is_demo';
+  'id, grave_number, slot_index, zone, inscription, pos_x, pos_y, pos_z, rotation_y, grave_style, created_at, is_demo, flower_count, flower_color';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {

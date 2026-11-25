@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Eye, Plus, SkipForward } from 'lucide-react';
 import type { CemeteryStats, Grave } from '../../types/grave';
-import { fetchPublicGraves, fetchStats, searchGraveByNumber } from '../../services/graves';
+import { fetchPublicGraves, fetchStats, leaveRoseOnGrave, searchGraveByNumber } from '../../services/graves';
 import { CemeteryScene } from '../../three/CemeteryScene';
 import { detectWebGLSupport, type QualitySetting, type QualityTier } from '../../three/PerformanceManager';
 import { Header } from '../../hud/Header/Header';
@@ -16,6 +16,7 @@ import { GraveDetailContent } from '../../components/GraveDetails/GraveDetailCon
 interface CemeteryPageProps {
   onOpenBury: () => void;
   onOpenSearch: () => void;
+  onOpenAbout: () => void;
   latestBuriedGrave: Grave | null;
   onClearLatestBuried: () => void;
   searchedGrave: Grave | null;
@@ -26,6 +27,7 @@ interface CemeteryPageProps {
 export function CemeteryPage({
   onOpenBury,
   onOpenSearch,
+  onOpenAbout,
   latestBuriedGrave,
   onClearLatestBuried,
   searchedGrave,
@@ -49,12 +51,14 @@ export function CemeteryPage({
   const [showHint, setShowHint] = useState(true);
   const [hintExpanded, setHintExpanded] = useState(true);
   const [isBuryAnimating, setIsBuryAnimating] = useState(false);
+  const [roseSubmitting, setRoseSubmitting] = useState(false);
   const [notFoundToast, setNotFoundToast] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [joyKnob, setJoyKnob] = useState({ x: 0, y: 0 });
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<CemeteryScene | null>(null);
+  const syncedGraveSigRef = useRef<string>('');
   const joyOriginRef = useRef<{ x: number; y: number } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -119,6 +123,10 @@ export function CemeteryPage({
         setSettingsOpen(false);
         onOpenBury();
       },
+      onOpenAbout: () => {
+        setSettingsOpen(false);
+        onOpenAbout();
+      },
       onEscape: () => {
         setSelectedGrave(null);
         setSettingsOpen(false);
@@ -131,6 +139,7 @@ export function CemeteryPage({
       },
     });
     engineRef.current = engine;
+    syncedGraveSigRef.current = `${graves.length}:${graves[0]?.id ?? ''}`;
     setActiveTier(engine.perf.activeTier);
     setLoadingProgress(100);
 
@@ -150,12 +159,31 @@ export function CemeteryPage({
     };
   }, [webglSupported, graves.length > 0]);
 
-  // Sync updated graves list into engine
+  // Sync newly added/removed graves into engine without rebuilding on rose-only updates
   useEffect(() => {
-    if (engineRef.current && graves.length > 0) {
-      engineRef.current.setGraves(graves);
-    }
+    if (!engineRef.current || graves.length === 0) return;
+    const sig = `${graves.length}:${graves[0]?.id ?? ''}`;
+    if (syncedGraveSigRef.current === sig) return;
+    syncedGraveSigRef.current = sig;
+    engineRef.current.setGraves(graves);
   }, [graves]);
+
+  const handleLeaveRose = useCallback(async (grave: Grave) => {
+    setRoseSubmitting(true);
+    try {
+      const next = await leaveRoseOnGrave(grave);
+      const updated: Grave = {
+        ...grave,
+        flower_count: next.flower_count,
+        flower_color: next.flower_color,
+      };
+      setGraves((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+      setSelectedGrave((curr) => (curr?.id === updated.id ? updated : curr));
+      engineRef.current?.graveMgr.updateGraveFlower(updated);
+    } finally {
+      setRoseSubmitting(false);
+    }
+  }, []);
 
   // Handle permalink route /grave/:number
   useEffect(() => {
@@ -375,6 +403,8 @@ export function CemeteryPage({
           <aside className="glass-card grave-detail-panel" aria-label="Selected gravestone">
             <GraveDetailContent
               grave={selectedGrave}
+              onLeaveRose={handleLeaveRose}
+              roseSubmitting={roseSubmitting}
               onClose={() => {
                 setSelectedGrave(null);
                 engineRef.current?.graveMgr.setSelectedGrave(null);

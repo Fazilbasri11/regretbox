@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Copy, Flag, X } from 'lucide-react';
+import { Check, Copy, Flag, Flower2, X } from 'lucide-react';
 import { APP_CONFIG } from '../../app/config';
 import type { Grave } from '../../types/grave';
 import { formatBurialDate, formatGraveNumber } from '../../utils/graves';
@@ -8,9 +8,16 @@ import { reportGrave } from '../../services/graves';
 interface GraveDetailContentProps {
   grave: Grave;
   onClose?: () => void;
+  onLeaveRose?: (grave: Grave) => Promise<void> | void;
+  roseSubmitting?: boolean;
 }
 
-export function GraveDetailContent({ grave, onClose }: GraveDetailContentProps) {
+export function GraveDetailContent({
+  grave,
+  onClose,
+  onLeaveRose,
+  roseSubmitting = false,
+}: GraveDetailContentProps) {
   const [copied, setCopied] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -20,6 +27,9 @@ export function GraveDetailContent({ grave, onClose }: GraveDetailContentProps) 
 
   const padded = String(grave.grave_number).padStart(5, '0');
   const permalink = `${window.location.origin}/grave/${padded}`;
+  const flowerCount = grave.flower_count ?? 0;
+  const roseColorLabel =
+    grave.flower_color === 'red' ? 'Red rose' : grave.flower_color === 'white' ? 'White rose' : null;
 
   const handleCopy = async () => {
     try {
@@ -92,14 +102,67 @@ export function GraveDetailContent({ grave, onClose }: GraveDetailContentProps) 
         “{grave.inscription}”
       </blockquote>
 
-      <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
+      <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
         {APP_CONFIG.graveDateLabel} {formatBurialDate(grave.created_at)}
+      </div>
+
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 13,
+          color: 'var(--text-ivory)',
+          padding: '6px 12px',
+          borderRadius: 999,
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          marginBottom: 16,
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: 9,
+            height: 9,
+            borderRadius: '50%',
+            background:
+              grave.flower_color === 'red'
+                ? '#e04858'
+                : grave.flower_color === 'white'
+                  ? '#f4f0e6'
+                  : 'rgba(255, 255, 255, 0.25)',
+            boxShadow:
+              flowerCount > 0
+                ? grave.flower_color === 'red'
+                  ? '0 0 8px rgba(224, 72, 88, 0.65)'
+                  : '0 0 8px rgba(244, 240, 230, 0.6)'
+                : 'none',
+          }}
+        />
+        <span>
+          {flowerCount === 0
+            ? 'No roses left yet'
+            : `${flowerCount} ${flowerCount === 1 ? 'Rose' : 'Roses'} left${roseColorLabel ? ` · ${roseColorLabel} on stone` : ''}`}
+        </span>
       </div>
 
       {error ? <div className="banner banner--error">{error}</div> : null}
       {feedback ? <div className="banner banner--success">{feedback}</div> : null}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {onLeaveRose ? (
+          <button
+            type="button"
+            className="btn btn--amber"
+            disabled={roseSubmitting}
+            onClick={() => onLeaveRose(grave)}
+          >
+            <Flower2 size={15} />
+            <span>{roseSubmitting ? 'Placing...' : 'Leave a Rose'}</span>
+          </button>
+        ) : null}
+
         <button type="button" className="btn btn--ghost" onClick={handleCopy}>
           {copied ? <Check size={15} /> : <Copy size={15} />}
           <span>{copied ? 'Copied' : 'Copy link'}</span>

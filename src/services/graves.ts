@@ -1,16 +1,58 @@
-import type { CemeteryStats, Grave } from '../types/grave';
+import type { CemeteryStats, Grave, RoseColor } from '../types/grave';
 import { DEMO_GRAVES, parseGraveNumberQuery } from '../utils/graves';
 import { isSupabaseConfigured, supabase } from './supabase';
+
+const FLOWER_STORAGE_KEY = 'regretbox_flowers_v1';
+
+interface StoredFlower {
+  flower_count: number;
+  flower_color: RoseColor;
+}
+
+function readLocalFlowers(): Record<string, StoredFlower> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(FLOWER_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalFlower(graveId: string, entry: StoredFlower): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = readLocalFlowers();
+    current[graveId] = entry;
+    window.localStorage.setItem(FLOWER_STORAGE_KEY, JSON.stringify(current));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+function applyLocalFlowerOverlay(grave: Grave, localMap = readLocalFlowers()): Grave {
+  const local = localMap[grave.id];
+  const baseCount = grave.flower_count ?? 0;
+  const localCount = local?.flower_count ?? 0;
+  const flower_count = Math.max(baseCount, localCount);
+  const flower_color = grave.flower_color ?? local?.flower_color ?? null;
+  return { ...grave, flower_count, flower_color };
+}
 
 export async function fetchPublicGraves(zone = 'all'): Promise<{
   graves: Grave[];
   isDemoFallback: boolean;
 }> {
+  const localFlowers = readLocalFlowers();
   if (!isSupabaseConfigured || !supabase) {
     const filtered =
       zone === 'all' ? DEMO_GRAVES : DEMO_GRAVES.filter((g) => g.zone === zone);
     return {
-      graves: [...filtered].sort((a, b) => b.slot_index - a.slot_index),
+      graves: [...filtered]
+        .sort((a, b) => b.slot_index - a.slot_index)
+        .map((g) => applyLocalFlowerOverlay(g, localFlowers)),
       isDemoFallback: true,
     };
   }
@@ -23,7 +65,9 @@ export async function fetchPublicGraves(zone = 'all'): Promise<{
     if (res.ok) {
       const payload = await res.json();
       return {
-        graves: (payload.graves || []) as Grave[],
+        graves: ((payload.graves || []) as Grave[]).map((g) =>
+          applyLocalFlowerOverlay(g, localFlowers),
+        ),
         isDemoFallback: false,
       };
     }
@@ -44,13 +88,15 @@ export async function fetchPublicGraves(zone = 'all'): Promise<{
   const { data, error } = await q;
   if (error || !data || data.length === 0) {
     return {
-      graves: [...DEMO_GRAVES].sort((a, b) => b.slot_index - a.slot_index),
+      graves: [...DEMO_GRAVES]
+        .sort((a, b) => b.slot_index - a.slot_index)
+        .map((g) => applyLocalFlowerOverlay(g, localFlowers)),
       isDemoFallback: true,
     };
   }
 
   return {
-    graves: data as Grave[],
+    graves: (data as Grave[]).map((g) => applyLocalFlowerOverlay(g, localFlowers)),
     isDemoFallback: false,
   };
 }
@@ -106,7 +152,10 @@ export async function searchGraveByNumber(rawQuery: string): Promise<{
 
   if (!isSupabaseConfigured || !supabase) {
     const match = DEMO_GRAVES.find((g) => g.grave_number === num) || null;
-    return { grave: match, notFound: !match };
+    return {
+      grave: match ? applyLocalFlowerOverlay(match) : null,
+      notFound: !match,
+    };
   }
 
   try {
@@ -116,9 +165,10 @@ export async function searchGraveByNumber(rawQuery: string): Promise<{
     }
     if (res.ok) {
       const payload = await res.json();
+      const found = (payload.grave as Grave) || null;
       return {
-        grave: (payload.grave as Grave) || null,
-        notFound: Boolean(payload.notFound || !payload.grave),
+        grave: found ? applyLocalFlowerOverlay(found) : null,
+        notFound: Boolean(payload.notFound || !found),
       };
     }
   } catch {
@@ -131,10 +181,52 @@ export async function searchGraveByNumber(rawQuery: string): Promise<{
     .eq('grave_number', num)
     .maybeSingle();
 
+  const found = (data as Grave) || null;
   return {
-    grave: (data as Grave) || null,
-    notFound: !data,
+    grave: found ? applyLocalFlowerOverlay(found) : null,
+    notFound: !found,
   };
+}
+
+export async function leaveRoseOnGrave(grave: Grave): Promise<{
+  flower_count: number;
+  flower_color: RoseColor;
+}> {
+  if (isSupabaseConfigured && !grave.is_demo) {
+    try {
+      const res = await fetch('/api/graves/flower', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ graveId: grave.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const entry: StoredFlower = {
+          flower_count: Number(data.flower_count ?? (grave.flower_count ?? 0) + 1),
+          flower_color: data.flower_color === 'red' ? 'red' : 'white',
+        };
+        writeLocalFlower(grave.id, entry);
+        return entry;
+      }
+    } catch {
+      // Fallback to local update if endpoint unreachable during dev
+    }
+  }
+
+  const existingColor = grave.flower_color ?? readLocalFlowers()[grave.id]?.flower_color;
+  const chosenColor: RoseColor =
+    existingColor === 'white' || existingColor === 'red'
+      ? existingColor
+      : Math.random() < 0.5
+        ? 'white'
+        : 'red';
+
+  const nextEntry: StoredFlower = {
+    flower_count: (grave.flower_count ?? 0) + 1,
+    flower_color: chosenColor,
+  };
+  writeLocalFlower(grave.id, nextEntry);
+  return nextEntry;
 }
 
 export async function burySentence(input: {

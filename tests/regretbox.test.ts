@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeGravePlacement } from '../api/_lib/graveGrid';
 import { sanitizeSentence } from '../api/_lib/supabaseAdmin';
+import { leaveRoseOnGrave } from '../src/services/graves';
 import { computeLanternPositions } from '../src/three/Lanterns';
 import { getPathCenterX, getTerrainHeight, PATH_HALF_WIDTH } from '../src/three/terrain';
 import { DEMO_GRAVES, formatBurialDate, formatGraveNumber, parseGraveNumberQuery } from '../src/utils/graves';
@@ -79,5 +80,22 @@ describe('Server sentence sanitization', () => {
     );
     const long = 'a'.repeat(160);
     expect(sanitizeSentence(long)).toHaveLength(120);
+  });
+});
+
+describe('Rose offering behavior', () => {
+  it('picks white or red randomly on first offering and increments count while keeping rose color fixed', async () => {
+    const base = { ...DEMO_GRAVES[0], flower_count: 0, flower_color: null };
+    const first = await leaveRoseOnGrave(base);
+    expect(first.flower_count).toBe(1);
+    expect(['white', 'red']).toContain(first.flower_color);
+
+    const second = await leaveRoseOnGrave({
+      ...base,
+      flower_count: first.flower_count,
+      flower_color: first.flower_color,
+    });
+    expect(second.flower_count).toBe(2);
+    expect(second.flower_color).toBe(first.flower_color);
   });
 });

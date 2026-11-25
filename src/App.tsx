@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import type { Grave } from './types/grave';
 import { BurialModal } from './components/BurialForm/BurialModal';
+import { AboutModal } from './components/About/AboutModal';
 import { SearchModal } from './components/Search/SearchModal';
 import { CemeteryPage } from './pages/Cemetery/CemeteryPage';
 import { ListViewPage } from './pages/ListView/ListViewPage';
@@ -12,6 +13,7 @@ function AppShell() {
   const navigate = useNavigate();
   const [buryOpen, setBuryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [latestBuriedGrave, setLatestBuriedGrave] = useState<Grave | null>(null);
   const [searchedGrave, setSearchedGrave] = useState<Grave | null>(null);
   const [statsRefreshKey, setStatsRefreshKey] = useState(0);
@@ -33,6 +35,7 @@ function AppShell() {
     <CemeteryPage
       onOpenBury={() => setBuryOpen(true)}
       onOpenSearch={() => setSearchOpen(true)}
+      onOpenAbout={() => setAboutOpen(true)}
       latestBuriedGrave={latestBuriedGrave}
       onClearLatestBuried={() => setLatestBuriedGrave(null)}
       searchedGrave={searchedGrave}
@@ -59,6 +62,8 @@ function AppShell() {
       {searchOpen ? (
         <SearchModal onClose={() => setSearchOpen(false)} onFound={handleSearchFound} />
       ) : null}
+
+      {aboutOpen ? <AboutModal onClose={() => setAboutOpen(false)} /> : null}
     </>
   );
 }

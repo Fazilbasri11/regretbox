@@ -19,6 +19,7 @@ import { Sky } from './Sky';
 export interface CemeteryEngineCallbacks {
   onSelectGrave: (grave: Grave) => void;
   onOpenBury: () => void;
+  onOpenAbout: () => void;
   onEscape: () => void;
   onUserMoved: () => void;
   onTierChanged?: (tier: QualityTier) => void;
@@ -115,9 +116,11 @@ export class CemeteryScene {
       this.cameraCtrl,
       this.graveMgr,
       this.signBoard,
+      this.env,
       {
         onSelectGrave: callbacks.onSelectGrave,
         onOpenBurySign: callbacks.onOpenBury,
+        onOpenAbout: callbacks.onOpenAbout,
         onEscape: callbacks.onEscape,
         onUserMoved: callbacks.onUserMoved,
       },
@@ -128,9 +131,11 @@ export class CemeteryScene {
       this.cameraCtrl,
       this.graveMgr,
       this.signBoard,
+      this.env,
       {
         onSelectGrave: callbacks.onSelectGrave,
         onOpenBurySign: callbacks.onOpenBury,
+        onOpenAbout: callbacks.onOpenAbout,
         onUserMoved: callbacks.onUserMoved,
       },
     );

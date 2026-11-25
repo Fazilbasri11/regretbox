@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import type { Grave } from '../types/grave';
 import type { CameraController } from './CameraController';
+import type { Environment } from './Environment';
 import type { GraveManager } from './GraveManager';
 import type { SignBoard } from './SignBoard';
 
 export interface MobileControlsCallbacks {
   onSelectGrave: (grave: Grave) => void;
   onOpenBurySign: () => void;
+  onOpenAbout: () => void;
   onUserMoved: () => void;
 }
 
@@ -27,6 +29,7 @@ export class MobileControls {
     private cameraCtrl: CameraController,
     private graveManager: GraveManager,
     private signBoard: SignBoard,
+    private env: Environment,
     private callbacks: MobileControlsCallbacks,
   ) {
     this.domElement.addEventListener('touchstart', this.handleTouchStart, { passive: true });
@@ -84,7 +87,7 @@ export class MobileControls {
 
     this.raycaster.setFromCamera(this.pointer, this.cameraCtrl.camera);
     const hits = this.raycaster.intersectObjects(
-      [this.signBoard.hitMesh, ...this.graveManager.getHitboxes()],
+      [this.signBoard.hitMesh, this.env.doorHitMesh, ...this.graveManager.getHitboxes()],
       false,
     );
     if (hits.length === 0) return;
@@ -92,6 +95,10 @@ export class MobileControls {
     const hitObj = hits[0].object;
     if (hitObj.userData?.isBurySign) {
       this.callbacks.onOpenBurySign();
+      return;
+    }
+    if (hitObj.userData?.isAboutDoor) {
+      this.callbacks.onOpenAbout();
       return;
     }
     const grave = hitObj.userData?.grave as Grave | undefined;

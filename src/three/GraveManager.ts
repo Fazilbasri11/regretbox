@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Grave, GraveStyle } from '../types/grave';
 import type { AssetLoader } from './AssetLoader';
 import { InscriptionTextureCache } from './InscriptionTexture';
@@ -10,16 +11,76 @@ interface PlaqueSlot {
   mat: THREE.MeshStandardMaterial;
 }
 
+function createRoseGeometries(): { stemGeo: THREE.BufferGeometry; bloomGeo: THREE.BufferGeometry } {
+  const toFlat = (g: THREE.BufferGeometry) => {
+    const out = g.index ? g.toNonIndexed() : g;
+    if (out !== g) g.dispose();
+    return out;
+  };
+
+  const stemPart = toFlat(new THREE.CylinderGeometry(0.012, 0.015, 0.29, 6));
+  stemPart.translate(0, 0.145, 0);
+
+  const calyx = toFlat(new THREE.ConeGeometry(0.04, 0.055, 6));
+  calyx.rotateX(Math.PI);
+  calyx.translate(0, 0.28, 0);
+
+  const leafShape = new THREE.Shape();
+  leafShape.moveTo(0, 0);
+  leafShape.quadraticCurveTo(0.04, 0.032, 0, 0.095);
+  leafShape.quadraticCurveTo(-0.04, 0.032, 0, 0);
+  const leafL = toFlat(new THREE.ShapeGeometry(leafShape, 2));
+  leafL.rotateX(-0.75);
+  leafL.rotateZ(0.68);
+  leafL.translate(-0.014, 0.14, 0.012);
+
+  const leafR = toFlat(new THREE.ShapeGeometry(leafShape, 2));
+  leafR.rotateX(-0.75);
+  leafR.rotateZ(-0.68);
+  leafR.translate(0.014, 0.18, -0.012);
+
+  const stemGeo = mergeGeometries([stemPart, calyx, leafL, leafR], false);
+  stemPart.dispose();
+  calyx.dispose();
+  leafL.dispose();
+  leafR.dispose();
+
+  // Multi-layered rose bloom: outer cupped petals + inner spiral rose bud (vividly sized)
+  const bloomParts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 6; i += 1) {
+    const a = (i / 6) * Math.PI * 2;
+    const petal = toFlat(new THREE.SphereGeometry(0.054, 7, 5));
+    petal.scale(1.18, 0.96, 0.44);
+    petal.rotateY(a);
+    petal.rotateX(0.38);
+    petal.translate(Math.sin(a) * 0.042, 0.315, Math.cos(a) * 0.042);
+    bloomParts.push(petal);
+  }
+  const innerBud = toFlat(new THREE.DodecahedronGeometry(0.048, 0));
+  innerBud.scale(1.0, 1.25, 1.0);
+  innerBud.translate(0, 0.332, 0);
+  bloomParts.push(innerBud);
+
+  const bloomGeo = mergeGeometries(bloomParts, false);
+  bloomParts.forEach((p) => p.dispose());
+  return { stemGeo, bloomGeo };
+}
+
 export class GraveManager {
   private readonly root = new THREE.Group();
+  private readonly roseRoot = new THREE.Group();
   private graves: Grave[] = [];
   private hitboxes: THREE.Mesh[] = [];
   private instancedMeshes: THREE.InstancedMesh[] = [];
+  private roseMeshes: THREE.InstancedMesh[] = [];
   private plaquePool: PlaqueSlot[] = [];
   private geos: TombstoneGeometries;
+  private roseGeos: { stemGeo: THREE.BufferGeometry; bloomGeo: THREE.BufferGeometry };
   private stoneMat: THREE.MeshStandardMaterial;
   private plinthMat: THREE.MeshStandardMaterial;
   private moundMat: THREE.MeshStandardMaterial;
+  private roseStemMat: THREE.MeshStandardMaterial;
+  private roseBloomMat: THREE.MeshStandardMaterial;
   private plaqueCache: InscriptionTextureCache;
   private selectedGraveId: string | null = null;
   private highlightRing: THREE.Mesh;
@@ -31,8 +92,31 @@ export class GraveManager {
     assets: AssetLoader,
   ) {
     this.scene.add(this.root);
+    this.scene.add(this.roseRoot);
     this.geos = createTombstoneGeometries();
+    this.roseGeos = createRoseGeometries();
     this.plaqueCache = new InscriptionTextureCache(renderer);
+
+    this.roseStemMat = new THREE.MeshStandardMaterial({
+      color: 0x2d4e31,
+      roughness: 0.78,
+      side: THREE.DoubleSide,
+    });
+    this.roseBloomMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.48,
+      metalness: 0.04,
+    });
+    // Self-illuminate each rose gently in its own red/white instance color so it pops under moonlight
+    this.roseBloomMat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+         #ifdef USE_INSTANCING_COLOR
+           totalEmissiveRadiance += vColor * 0.28;
+         #endif`,
+      );
+    };
 
     this.stoneMat = new THREE.MeshStandardMaterial({
       map: assets.stonePBR.map,
@@ -203,6 +287,73 @@ export class GraveManager {
         this.instancedMeshes.push(mesh);
       }
     }
+
+    this.rebuildRoses();
+  }
+
+  private clearRoses(): void {
+    for (const im of this.roseMeshes) {
+      this.roseRoot.remove(im);
+    }
+    this.roseMeshes = [];
+  }
+
+  private rebuildRoses(): void {
+    this.clearRoses();
+    // At most ONE visual rose per gravestone even if flower_count > 1
+    const withRose = this.graves.filter((g) => (g.flower_count ?? 0) >= 1);
+    if (withRose.length === 0) return;
+
+    const stems = new THREE.InstancedMesh(this.roseGeos.stemGeo, this.roseStemMat, withRose.length);
+    const blooms = new THREE.InstancedMesh(this.roseGeos.bloomGeo, this.roseBloomMat, withRose.length);
+    stems.castShadow = true;
+    blooms.castShadow = true;
+
+    const dummy = new THREE.Object3D();
+    const bloomTint = new THREE.Color();
+
+    withRose.forEach((g, idx) => {
+      const gy = this.getGroundY(g);
+      const scaleVar = g.slot_index >= 38 ? 1.0 : 0.92 + ((g.grave_number * 13) % 16) * 0.01;
+      const sin = Math.sin(g.rotation_y);
+      const cos = Math.cos(g.rotation_y);
+
+      // Place single rose neatly resting on the front-right edge of the plinth, tilted toward the viewer
+      const localX = 0.34 * scaleVar;
+      const localZ = 0.28 * scaleVar;
+      const wx = g.pos_x + localX * cos + localZ * sin;
+      const wz = g.pos_z - localX * sin + localZ * cos;
+
+      dummy.position.set(wx, gy + 0.14 * scaleVar, wz);
+      dummy.rotation.set(0.36, g.rotation_y + 0.22, -0.18);
+      dummy.scale.setScalar(1.38 * scaleVar);
+      dummy.updateMatrix();
+      stems.setMatrixAt(idx, dummy.matrix);
+      blooms.setMatrixAt(idx, dummy.matrix);
+
+      const isRed = g.flower_color === 'red';
+      bloomTint.setHex(isRed ? 0xe0283b : 0xfaf6ee);
+      blooms.setColorAt(idx, bloomTint);
+    });
+
+    stems.instanceMatrix.needsUpdate = true;
+    blooms.instanceMatrix.needsUpdate = true;
+    if (blooms.instanceColor) blooms.instanceColor.needsUpdate = true;
+
+    this.roseRoot.add(stems, blooms);
+    this.roseMeshes.push(stems, blooms);
+  }
+
+  public updateGraveFlower(updated: Grave): void {
+    const idx = this.graves.findIndex((g) => g.id === updated.id);
+    if (idx !== -1) {
+      this.graves[idx] = updated;
+    }
+    const hb = this.hitboxes.find((h) => (h.userData?.grave as Grave | undefined)?.id === updated.id);
+    if (hb) {
+      hb.userData.grave = updated;
+    }
+    this.rebuildRoses();
   }
 
   public updateNearbyPlaques(cameraPos: THREE.Vector3): void {
@@ -304,14 +455,19 @@ export class GraveManager {
 
   public dispose(): void {
     this.clearInstances();
+    this.clearRoses();
     this.plaqueCache.dispose();
     Object.values(this.geos.lod0).forEach((g) => g.dispose());
     Object.values(this.geos.lod1).forEach((g) => g.dispose());
     this.geos.plinth.dispose();
     this.geos.mound.dispose();
+    this.roseGeos.stemGeo.dispose();
+    this.roseGeos.bloomGeo.dispose();
     this.stoneMat.dispose();
     this.plinthMat.dispose();
     this.moundMat.dispose();
+    this.roseStemMat.dispose();
+    this.roseBloomMat.dispose();
     this.plaquePool.forEach((slot) => {
       slot.mesh.geometry.dispose();
       slot.mat.dispose();
