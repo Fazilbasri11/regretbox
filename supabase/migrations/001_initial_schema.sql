@@ -1,5 +1,5 @@
--- RegretBox v2.0 Schema: Anonymous Public Digital Cemetery
--- No user accounts, no auth, no reminders, no private history.
+-- RegretBox v3.0 Schema: Anonymous Public Digital Cemetery
+-- Grave styles: arched (45%), slim (25%), cross (15%), scroll (15%)
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS public.graves (
   pos_y real NOT NULL DEFAULT 0,
   pos_z real NOT NULL,
   rotation_y real NOT NULL DEFAULT 0,
-  grave_style text NOT NULL DEFAULT 'classic' CHECK (
-    grave_style IN ('classic', 'obelisk', 'slab', 'cross_arch', 'mossy_stone')
+  grave_style text NOT NULL DEFAULT 'arched' CHECK (
+    grave_style IN ('arched', 'slim', 'cross', 'scroll')
   ),
   created_at timestamptz NOT NULL DEFAULT now(),
   moderation_status text NOT NULL DEFAULT 'visible' CHECK (
@@ -29,9 +29,8 @@ CREATE TABLE IF NOT EXISTS public.graves (
 
 CREATE INDEX IF NOT EXISTS idx_graves_number ON public.graves(grave_number);
 CREATE INDEX IF NOT EXISTS idx_graves_moderation_created ON public.graves(moderation_status, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_graves_zone ON public.graves(zone);
+CREATE INDEX IF NOT EXISTS idx_graves_slot ON public.graves(slot_index DESC);
 
--- Public read-only view excluding hidden graves
 CREATE OR REPLACE VIEW public.public_graves_view AS
 SELECT
   id,
@@ -49,7 +48,6 @@ SELECT
 FROM public.graves
 WHERE moderation_status IN ('visible', 'flagged');
 
--- Reports for public moderation
 CREATE TABLE IF NOT EXISTS public.grave_reports (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   grave_id uuid NOT NULL REFERENCES public.graves(id) ON DELETE CASCADE,
@@ -59,10 +57,9 @@ CREATE TABLE IF NOT EXISTS public.grave_reports (
 
 CREATE INDEX IF NOT EXISTS idx_grave_reports_grave ON public.grave_reports(grave_id);
 
--- Atomic grave creation RPC (service_role only)
 CREATE OR REPLACE FUNCTION public.create_public_grave(
   p_inscription text,
-  p_grave_style text DEFAULT 'classic',
+  p_grave_style text DEFAULT 'arched',
   p_zone text DEFAULT 'new_cemetery',
   p_pos_x real DEFAULT 0,
   p_pos_y real DEFAULT 0,
@@ -81,7 +78,7 @@ DECLARE
   v_slot int;
   v_grave public.graves;
 BEGIN
-  PERFORM pg_advisory_xact_lock(98245202);
+  PERFORM pg_advisory_xact_lock(98245303);
 
   v_clean := trim(regexp_replace(COALESCE(p_inscription, ''), '\s+', ' ', 'g'));
   IF char_length(v_clean) < 3 OR char_length(v_clean) > 120 THEN
@@ -137,7 +134,6 @@ $$;
 REVOKE ALL ON FUNCTION public.create_public_grave(text, text, text, real, real, real, real, int) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_public_grave(text, text, text, real, real, real, real, int) TO service_role;
 
--- Row Level Security
 ALTER TABLE public.graves ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grave_reports ENABLE ROW LEVEL SECURITY;
 
@@ -146,5 +142,4 @@ CREATE POLICY graves_select_visible ON public.graves
   FOR SELECT
   USING (moderation_status IN ('visible', 'flagged'));
 
--- No direct client inserts/updates/deletes on graves
 GRANT SELECT ON public.public_graves_view TO anon, authenticated;

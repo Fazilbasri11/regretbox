@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { APP_CONFIG } from '../../app/config';
 import type { Grave } from '../../types/grave';
 import { MAX_INSCRIPTION_LENGTH, MIN_INSCRIPTION_LENGTH } from '../../utils/graves';
 import { burySentence } from '../../services/graves';
@@ -12,13 +13,12 @@ interface BurialModalProps {
 export function BurialModal({ onClose, onBuried }: BurialModalProps) {
   const [inscription, setInscription] = useState('');
   const [confirmed, setConfirmed] = useState(false);
-  const [website, setWebsite] = useState(''); // Honeypot anti-spam
+  const [website, setWebsite] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const trimmedLength = inscription.trim().length;
-  const isLengthValid =
-    trimmedLength >= MIN_INSCRIPTION_LENGTH && trimmedLength <= MAX_INSCRIPTION_LENGTH;
+  const isValid = trimmedLength >= MIN_INSCRIPTION_LENGTH && trimmedLength <= MAX_INSCRIPTION_LENGTH;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +34,7 @@ export function BurialModal({ onClose, onBuried }: BurialModalProps) {
       return;
     }
     if (!confirmed) {
-      setError('Please confirm that you understand this stone is public and permanent.');
+      setError('Please confirm public publication before burying.');
       return;
     }
 
@@ -54,31 +54,32 @@ export function BurialModal({ onClose, onBuried }: BurialModalProps) {
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="bury-modal-title">
-      <div className="modal-panel">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-          <h2 id="bury-modal-title" className="serif" style={{ margin: 0, fontSize: '1.9rem' }}>
-            Bury a Regret
+    <div
+      className="modal-backdrop modal-backdrop--sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bury-modal-title"
+      onClick={onClose}
+    >
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 id="bury-modal-title" className="serif" style={{ margin: 0, fontSize: 32, fontWeight: 600 }}>
+            Add Your Regret
           </h2>
           <button
             type="button"
-            className="btn btn--ghost btn--sm"
+            className="btn btn--ghost"
             onClick={onClose}
             aria-label="Close burial form"
-            style={{ minWidth: 44, minHeight: 44, padding: 0 }}
+            style={{ width: 44, padding: 0, borderRadius: '50%' }}
           >
             <X size={18} />
           </button>
         </div>
 
-        <p style={{ color: 'var(--text-muted)', marginTop: 0, fontSize: '0.92rem' }}>
-          Write it. Bury it. Let it rest. No account is created, and nothing is kept in a private history.
-        </p>
-
         {error ? <div className="banner banner--error">{error}</div> : null}
 
         <form onSubmit={handleSubmit}>
-          {/* Anti-spam honeypot */}
           <div className="sr-only" aria-hidden="true">
             <label htmlFor="rb-website">Website</label>
             <input
@@ -91,16 +92,18 @@ export function BurialModal({ onClose, onBuried }: BurialModalProps) {
             />
           </div>
 
-          <div className="field">
-            <label className="field__label" htmlFor="regret-sentence">
+          <div style={{ marginBottom: 14 }}>
+            <label
+              htmlFor="regret-sentence"
+              style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, fontSize: 14, marginBottom: 8 }}
+            >
               <span>What do you want to bury?</span>
               <span
-                className="mono field__hint"
                 style={{
                   color:
                     inscription.length > MAX_INSCRIPTION_LENGTH
                       ? 'var(--accent-crimson)'
-                      : 'var(--text-muted)',
+                      : 'var(--text-dim)',
                 }}
               >
                 {inscription.length} / {MAX_INSCRIPTION_LENGTH}
@@ -116,26 +119,13 @@ export function BurialModal({ onClose, onBuried }: BurialModalProps) {
               onChange={(e) => setInscription(e.target.value)}
               placeholder="Write one sentence. Leave it here."
             />
-            <span className="field__hint">
-              One sentence only (3–120 characters). HTML tags are removed.
-            </span>
           </div>
 
           <div
-            style={{
-              padding: '0.85rem',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid rgba(224, 159, 62, 0.36)',
-              background: 'rgba(224, 159, 62, 0.08)',
-              marginBottom: '1rem',
-              fontSize: '0.84rem',
-              color: '#f2d39c',
-              display: 'flex',
-              gap: '0.6rem',
-              alignItems: 'flex-start',
-            }}
+            className="banner"
+            style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14 }}
           >
-            <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+            <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2, color: 'var(--accent-amber)' }} />
             <span>
               Your sentence will be published on a public gravestone. It cannot be edited or taken back after burial. Do not include your name, contact details, or other personal information.
             </span>
@@ -145,9 +135,10 @@ export function BurialModal({ onClose, onBuried }: BurialModalProps) {
             style={{
               display: 'flex',
               alignItems: 'flex-start',
-              gap: '0.6rem',
-              marginBottom: '1.25rem',
-              fontSize: '0.88rem',
+              gap: 10,
+              marginBottom: 18,
+              fontSize: 14,
+              color: 'var(--text-dim)',
               cursor: 'pointer',
             }}
           >
@@ -155,24 +146,36 @@ export function BurialModal({ onClose, onBuried }: BurialModalProps) {
               type="checkbox"
               checked={confirmed}
               onChange={(e) => setConfirmed(e.target.checked)}
-              style={{ marginTop: 4, minWidth: 18, minHeight: 18 }}
+              style={{ marginTop: 3, minWidth: 18, minHeight: 18 }}
             />
-            <span>I understand my sentence becomes a permanent public gravestone.</span>
+            <span>I understand this sentence will be published publicly and cannot be edited or removed.</span>
           </label>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <button type="button" className="btn btn--ghost" onClick={onClose} disabled={submitting}>
               Cancel
             </button>
             <button
               type="submit"
-              className="btn btn--primary"
-              disabled={submitting || !isLengthValid || !confirmed}
+              className="btn btn--amber"
+              disabled={submitting || !isValid || !confirmed}
             >
               {submitting ? 'Carving Stone...' : 'Bury It'}
             </button>
           </div>
         </form>
+
+        <p
+          style={{
+            margin: '18px 0 0',
+            textAlign: 'center',
+            fontSize: 12,
+            color: 'var(--text-dim)',
+            fontStyle: 'italic',
+          }}
+        >
+          {APP_CONFIG.tagline}
+        </p>
       </div>
     </div>
   );

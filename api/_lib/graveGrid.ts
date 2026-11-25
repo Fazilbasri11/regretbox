@@ -1,13 +1,5 @@
 export type CemeteryZone = 'entrance' | 'new_cemetery' | 'old_cemetery' | 'memorial_garden';
-export type GraveStyle = 'classic' | 'obelisk' | 'slab' | 'cross_arch' | 'mossy_stone';
-
-export const GRAVE_STYLES: GraveStyle[] = [
-  'classic',
-  'obelisk',
-  'slab',
-  'cross_arch',
-  'mossy_stone',
-];
+export type GraveStyle = 'arched' | 'slim' | 'cross' | 'scroll';
 
 export interface GravePlacement {
   slotIndex: number;
@@ -19,60 +11,88 @@ export interface GravePlacement {
   graveStyle: GraveStyle;
 }
 
-/**
- * Deterministic, collision-free slot placement matching the 3D cemetery geometry:
- * - Central cobblestone path occupies |x| < 4.4
- * - Grand Iron Gate spans z in [-29, -24]
- * - Gothic Stone Chapel occupies x in [12, 32], z in [-25, -8]
- * - Foreground (z in [-22, 3]): New Cemetery
- * - Beyond the Gate (z <= -34): Old Cemetery & Memorial Garden
- */
+export function pickWeightedGraveStyle(seed: number): GraveStyle {
+  const bucket = Math.abs(seed * 37 + 13) % 100;
+  if (bucket < 45) return 'arched';
+  if (bucket < 70) return 'slim';
+  if (bucket < 85) return 'cross';
+  return 'scroll';
+}
+
+export function getPathCenterX(z: number): number {
+  const t = Math.max(0, Math.min(1, (z + 34) / 42));
+  return Number((Math.sin(t * Math.PI * 0.65) * 1.35).toFixed(3));
+}
+
 export function computeGravePlacement(slotIndex: number): GravePlacement {
-  const safeSlot = Math.max(1, Math.floor(slotIndex));
-  const style = GRAVE_STYLES[(safeSlot - 1) % GRAVE_STYLES.length];
+  const s = Math.max(1, Math.floor(slotIndex));
+  const style = s === 38 || s === 39 || s === 40 ? 'arched' : pickWeightedGraveStyle(s);
 
-  // Candidate grid: 4 columns on left, 4 columns on right per row
-  // Skip chapel footprint and gate footprint automatically
-  let validCursor = 0;
-  let row = 0;
+  if (s <= 36) {
+    const row = Math.floor((s - 1) / 4);
+    const col = (s - 1) % 4;
+    const zBase = -30.5 + row * 3.1;
+    const xCols = [-8.0, -4.1, 4.1, 7.8];
+    const xOffset = ((s % 3) - 1) * 0.14;
+    const zOffset = s % 2 === 0 ? 0.15 : -0.15;
+    const posX = Number((xCols[col] + xOffset).toFixed(2));
+    const posZ = Number((zBase + zOffset).toFixed(2));
+    const faceBase = col < 2 ? 0.08 : -0.09;
+    const yaw = Number((faceBase + ((s % 5) - 2) * 0.025).toFixed(3));
+    const zone: CemeteryZone =
+      row <= 4 ? 'old_cemetery' : col >= 2 && row <= 6 ? 'memorial_garden' : 'new_cemetery';
 
-  while (row < 500) {
-    const z = row < 4 ? 1.5 - row * 5.8 : -36.5 - (row - 4) * 5.8;
-    const cols = [-19.5, -14.5, -9.8, -5.6, 5.6, 9.8, 14.5, 19.5];
-
-    for (const x of cols) {
-      // Skip Gothic Chapel footprint on the right midground
-      const inChapel = x > 11.5 && z > -26.5 && z < -6.5;
-      if (inChapel) continue;
-
-      validCursor += 1;
-      if (validCursor === safeSlot) {
-        const zone: CemeteryZone =
-          row < 4 ? 'new_cemetery' : Math.abs(x) >= 14 ? 'memorial_garden' : 'old_cemetery';
-        const yawTowardPath = x < 0 ? 0.08 : -0.08;
-        const subtleJitter = ((safeSlot % 5) - 2) * 0.025;
-
-        return {
-          slotIndex: safeSlot,
-          zone,
-          posX: Number((x + ((safeSlot % 3) - 1) * 0.25).toFixed(2)),
-          posY: 0,
-          posZ: Number((z + ((safeSlot % 4) - 1.5) * 0.2).toFixed(2)),
-          rotationY: Number((yawTowardPath + subtleJitter).toFixed(3)),
-          graveStyle: style,
-        };
-      }
-    }
-    row += 1;
+    return { slotIndex: s, zone, posX, posY: 0, posZ, rotationY: yaw, graveStyle: style };
   }
 
+  if (s === 37) {
+    return { slotIndex: 37, zone: 'new_cemetery', posX: -6.9, posY: 0, posZ: -2.6, rotationY: 0.09, graveStyle: 'scroll' };
+  }
+  if (s === 38) {
+    return { slotIndex: 38, zone: 'new_cemetery', posX: 3.05, posY: 0, posZ: -1.6, rotationY: -0.14, graveStyle: 'arched' };
+  }
+  if (s === 39) {
+    return { slotIndex: 39, zone: 'new_cemetery', posX: -3.45, posY: 0, posZ: -1.2, rotationY: 0.16, graveStyle: 'arched' };
+  }
+  if (s === 40) {
+    return { slotIndex: 40, zone: 'new_cemetery', posX: -0.62, posY: 0, posZ: 1.35, rotationY: 0.06, graveStyle: 'arched' };
+  }
+
+  const extra = s - 41;
+  const cycle = Math.floor(extra / 3);
+  const role = extra % 3;
+  const baseZ = 4.4 + cycle * 3.1;
+  const pathX = getPathCenterX(baseZ);
+
+  if (role === 0) {
+    return {
+      slotIndex: s,
+      zone: 'new_cemetery',
+      posX: Number((pathX + 2.9 + ((s % 3) - 1) * 0.15).toFixed(2)),
+      posY: 0,
+      posZ: Number((baseZ - 0.3).toFixed(2)),
+      rotationY: -0.13,
+      graveStyle: style,
+    };
+  }
+  if (role === 1) {
+    return {
+      slotIndex: s,
+      zone: 'new_cemetery',
+      posX: Number((pathX - 3.6 + ((s % 3) - 1) * 0.15).toFixed(2)),
+      posY: 0,
+      posZ: Number((baseZ + 0.1).toFixed(2)),
+      rotationY: 0.15,
+      graveStyle: style,
+    };
+  }
   return {
-    slotIndex: safeSlot,
-    zone: 'old_cemetery',
-    posX: -8,
+    slotIndex: s,
+    zone: 'new_cemetery',
+    posX: Number((pathX - 1.55).toFixed(2)),
     posY: 0,
-    posZ: -80,
-    rotationY: 0.04,
+    posZ: Number((baseZ + 2.6).toFixed(2)),
+    rotationY: 0.06,
     graveStyle: style,
   };
 }

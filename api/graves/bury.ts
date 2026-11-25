@@ -19,7 +19,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
 
-    // Simple anti-spam honeypot
     if (typeof body.website === 'string' && body.website.trim().length > 0) {
       return sendError(res, 400, 'Invalid submission.');
     }
@@ -37,8 +36,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const admin = getSupabaseAdmin();
-
-    // Find next deterministic slot index
     const { data: maxSlotRow } = await admin
       .from('graves')
       .select('slot_index')
@@ -46,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .limit(1)
       .maybeSingle();
 
-    const nextSlot = Math.max(10, (maxSlotRow?.slot_index ?? 9) + 1);
+    const nextSlot = Math.max(41, (maxSlotRow?.slot_index ?? 40) + 1);
     const placement = computeGravePlacement(nextSlot);
 
     const { data, error } = await admin.rpc('create_public_grave', {

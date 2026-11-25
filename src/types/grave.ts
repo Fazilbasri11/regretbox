@@ -1,6 +1,6 @@
 export type CemeteryZone = 'entrance' | 'new_cemetery' | 'old_cemetery' | 'memorial_garden';
 
-export type GraveStyle = 'classic' | 'obelisk' | 'slab' | 'cross_arch' | 'mossy_stone';
+export type GraveStyle = 'arched' | 'slim' | 'cross' | 'scroll';
 
 export interface Grave {
   id: string;
@@ -15,4 +15,9 @@ export interface Grave {
   grave_style: GraveStyle;
   created_at: string;
   is_demo: boolean;
+}
+
+export interface CemeteryStats {
+  total: number;
+  buried_today: number;
 }

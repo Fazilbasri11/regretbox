@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import type { Grave } from './types/grave';
 import { BurialModal } from './components/BurialForm/BurialModal';
-import { Navbar } from './components/Navigation/Navbar';
 import { SearchModal } from './components/Search/SearchModal';
 import { CemeteryPage } from './pages/Cemetery/CemeteryPage';
-import { GravePage } from './pages/GraveDetail/GravePage';
-import { HomePage } from './pages/Home/HomePage';
+import { ListViewPage } from './pages/ListView/ListViewPage';
 import { LegalPage } from './pages/Legal/LegalPage';
 import { NotFoundPage } from './pages/NotFound/NotFoundPage';
 
@@ -15,52 +13,44 @@ function AppShell() {
   const [buryOpen, setBuryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [latestBuriedGrave, setLatestBuriedGrave] = useState<Grave | null>(null);
+  const [searchedGrave, setSearchedGrave] = useState<Grave | null>(null);
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
 
   const handleBuried = (grave: Grave) => {
     setBuryOpen(false);
     setLatestBuriedGrave(grave);
-    navigate(`/cemetery?grave=${grave.grave_number}`);
+    setStatsRefreshKey((k) => k + 1);
+    navigate('/');
   };
 
   const handleSearchFound = (grave: Grave) => {
     setSearchOpen(false);
-    navigate(`/cemetery?grave=${grave.grave_number}`);
+    setSearchedGrave(grave);
+    navigate('/');
   };
 
-  return (
-    <div className="app-shell">
-      <Navbar
-        onOpenBury={() => setBuryOpen(true)}
-        onOpenSearch={() => setSearchOpen(true)}
-      />
+  const cemeteryElement = (
+    <CemeteryPage
+      onOpenBury={() => setBuryOpen(true)}
+      onOpenSearch={() => setSearchOpen(true)}
+      latestBuriedGrave={latestBuriedGrave}
+      onClearLatestBuried={() => setLatestBuriedGrave(null)}
+      searchedGrave={searchedGrave}
+      onClearSearchedGrave={() => setSearchedGrave(null)}
+      statsRefreshKey={statsRefreshKey}
+    />
+  );
 
+  return (
+    <>
       <Routes>
-        <Route path="/" element={<HomePage onOpenBury={() => setBuryOpen(true)} />} />
-        <Route
-          path="/cemetery"
-          element={
-            <CemeteryPage
-              onOpenBury={() => setBuryOpen(true)}
-              onOpenSearch={() => setSearchOpen(true)}
-              latestBuriedGrave={latestBuriedGrave}
-              onClearLatestBuried={() => setLatestBuriedGrave(null)}
-            />
-          }
-        />
-        <Route path="/graves/:graveNumber" element={<GravePage />} />
-        <Route path="/legal" element={<LegalPage />} />
+        <Route path="/" element={cemeteryElement} />
+        <Route path="/cemetery" element={cemeteryElement} />
+        <Route path="/grave/:number" element={cemeteryElement} />
+        <Route path="/list" element={<ListViewPage onOpenBury={() => setBuryOpen(true)} />} />
+        <Route path="/terms" element={<LegalPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-
-      <footer className="footer">
-        <div className="footer__inner">
-          <span>RegretBox — Write it. Bury it. Let it rest.</span>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <Link to="/cemetery?view=list">List View</Link>
-            <Link to="/legal">Terms & Privacy</Link>
-          </div>
-        </div>
-      </footer>
 
       {buryOpen ? (
         <BurialModal onClose={() => setBuryOpen(false)} onBuried={handleBuried} />
@@ -69,7 +59,7 @@ function AppShell() {
       {searchOpen ? (
         <SearchModal onClose={() => setSearchOpen(false)} onFound={handleSearchFound} />
       ) : null}
-    </div>
+    </>
   );
 }
 

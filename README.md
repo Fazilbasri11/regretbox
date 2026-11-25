@@ -1,65 +1,41 @@
-# RegretBox — The Regret Cemetery
+# RegretBox — The Regret Cemetery (v3.0)
 
 *Write it. Bury it. Let it rest.*
 
-RegretBox is an anonymous, responsive 3D digital cemetery built with **Vite + React + TypeScript + Three.js + GSAP** and **Vercel Serverless Functions + Supabase Postgres**.
+RegretBox is an anonymous, full-screen 3D digital cemetery built with **Vite + TypeScript + Three.js + `postprocessing` + GSAP** and **Vercel Serverless Functions + Supabase Postgres**.
 
-Visitors write **one sentence** (max 120 characters) without creating an account, confirm public burial, and watch a unique numbered gravestone appear in an explorable 3D cemetery whose atmosphere adapts automatically to the visitor's local time of day (**Morning Mist**, **Overcast Day**, **Twilight Dusk**, and **Moonlit Night**).
+Opening `/` enters the moonlit foggy gothic cemetery directly (no landing page, no login, no personal dashboard). Visitors can explore the grounds, read public engraved gravestones, search by grave number, or click **Add Your Regret** to carve one sentence (up to 120 characters) into permanent stone.
 
-## Key Features
-
-- **Zero accounts / zero private history:** No login, registration, reminders, or editing after burial.
-- **One-sentence burial form:** Strictly 3–120 characters, live counter, explicit public permanence warning, anti-spam honeypot, and server-side rate limiting.
-- **Atomic grave numbers:** Unique sequential `#00001` numbers allocated server-side via PostgreSQL sequence + advisory lock (`create_public_grave` RPC).
-- **Explorable 3D Cemetery:**
-  - Procedural wrought-iron entrance gate (`R` crest), cobblestone path, Gothic chapel, flickering stone lanterns, trees, and flower clusters.
-  - **Local Time-of-Day Atmosphere:** Automatically sets sky shader, fog, moon/sun, stars, and lantern intensity from the visitor's local clock (with manual preview selector in the HUD).
-  - **Performance-first rendering:** `THREE.InstancedMesh` for stone silhouettes, LOD engraved plaques for nearby stones, **Low Graphics Mode**, and automatic **2D List View** fallback when WebGL is unavailable.
-  - **Desktop & Mobile controls:** `WASD`/Arrows, drag look, scroll dolly, `Esc` close, plus 1-finger look + virtual joystick + bottom sheet on mobile (safe down to `320px`).
-- **Search & Moderation:** Search by `#00291` / `00291`, permalink pages (`/graves/:graveNumber`), and public gravestone reporting (`visible` / `flagged` / `hidden`).
+## Highlights
+- **Full-Screen 3D Experience:** Locked *Moonlit Foggy Night* aesthetic with sky shader, cratered full moon + 2-layer halo + drifting clouds, ground mist, fireflies, wet cobblestone path with PMREM specular reflections, wrought-iron `R` gate, gothic chapel with glowing tracery windows, sculpted beveled gravestones (`arched`, `slim`, `cross`, `scroll`), flickering lanterns, and carved wooden **Add Your Regret** sign.
+- **Readable Engraved Typography:** Dynamic 1024px/2048px `CanvasTexture` + carved normal map (`Cormorant Garamond`, `R.I.P.`, `Regret #00291`, auto-fit quote, `Dikuburkan: 25 Nov 2026`), LRU-cached up to 48 textures.
+- **Post-Processing & Quality Governor:** `postprocessing` (`BloomEffect`, `DepthOfFieldEffect`, `VignetteEffect`, `NoiseEffect`, `ToneMappingEffect`, `SMAAEffect`) with `Auto / High / Medium / Low` tiers and automatic 2D **List View** fallback (`/list`) if WebGL is unavailable.
+- **Asset Strategy:** Supports self-hosted `.glb` / `.webp` / `.hdr` files in `public/models/` & `public/textures/` with high-detail sculpted procedural PBR fallbacks (see `public/CREDITS.md`).
 
 ## Local Setup
 
+> On Windows PowerShell where `npm.ps1` is blocked by execution policy, use `npm.cmd` and `npx.cmd`.
+
 1. Install dependencies:
-   ```bash
-   npm install
+   ```powershell
+   npm.cmd install
    ```
-
-2. Create a Supabase project and run the SQL files in order via the Supabase SQL Editor:
-   - `supabase/migrations/001_initial_schema.sql`
-   - `supabase/seed.sql` (optional demonstration seed graves `#00289`–`#00297`)
-
-3. Copy `.env.example` to `.env.local` and fill in your credentials:
+2. *(Optional for DB persistence)* Run `supabase/migrations/001_initial_schema.sql` and `supabase/seed.sql` in Supabase SQL Editor, then copy `.env.example` to `.env.local` and fill:
    ```env
-   VITE_SUPABASE_URL=https://your-project.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key
-
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-   RATE_LIMIT_SECRET=random-long-secret-string
+   VITE_SUPABASE_URL=
+   VITE_SUPABASE_ANON_KEY=
+   SUPABASE_URL=
+   SUPABASE_SERVICE_ROLE_KEY=
+   RATE_LIMIT_SECRET=
    ```
-   > If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are left blank, the frontend safely runs in read-only demonstration mode using the built-in seed stones.
+3. Run locally:
+   - Frontend + 3D Cemetery (uses 40-grave demonstration seed when Supabase is unconfigured): `npm.cmd run dev`
+   - Full-stack with `/api/*` Vercel Functions: `npx.cmd vercel dev`
 
-4. Start local development:
-   - Frontend only (UI + 3D Demo): `npm run dev`
-   - Full stack (Frontend + `/api/*` Vercel Functions): `npx vercel dev`
-
-## Testing & Build
-
-```bash
-npm run typecheck
-npm test
-npm run build
+## Verification & Deployment
+```powershell
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
 ```
-
-## Deploying to Vercel
-
-1. Push this repository to GitHub.
-2. Import the repository in **Vercel** (Framework Preset: **Vite**).
-3. Add the environment variables from `.env.example` in **Vercel Project Settings -> Environment Variables**:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY` (server-side secret, never prefix with `VITE_`)
-   - `RATE_LIMIT_SECRET`
-4. Deploy. `vercel.json` handles SPA routing while preserving `/api/*` serverless functions.
+Deploy to **Vercel** by importing the GitHub repo (Framework Preset: Vite) and adding the variables from `.env.example` in **Project Settings -> Environment Variables**.

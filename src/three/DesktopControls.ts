@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import type { Grave } from '../types/grave';
 import type { CameraController } from './CameraController';
 import type { GraveManager } from './GraveManager';
+import type { SignBoard } from './SignBoard';
 
 export interface DesktopControlsCallbacks {
   onSelectGrave: (grave: Grave) => void;
   onOpenBurySign: () => void;
   onEscape: () => void;
+  onUserMoved: () => void;
 }
 
 export class DesktopControls {
@@ -22,7 +24,7 @@ export class DesktopControls {
     private domElement: HTMLElement,
     private cameraCtrl: CameraController,
     private graveManager: GraveManager,
-    private signMesh: THREE.Mesh,
+    private signBoard: SignBoard,
     private callbacks: DesktopControlsCallbacks,
   ) {
     window.addEventListener('keydown', this.handleKeyDown);
@@ -45,7 +47,11 @@ export class DesktopControls {
       this.callbacks.onEscape();
       return;
     }
-    this.keys.add(e.key.toLowerCase());
+    const lower = e.key.toLowerCase();
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(lower)) {
+      this.callbacks.onUserMoved();
+    }
+    this.keys.add(lower);
   };
 
   private handleKeyUp = (e: KeyboardEvent) => {
@@ -61,15 +67,38 @@ export class DesktopControls {
   };
 
   private handlePointerMove = (e: PointerEvent) => {
-    if (!this.isDragging || e.pointerType === 'touch') return;
-    const dx = e.clientX - this.lastX;
-    const dy = e.clientY - this.lastY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      this.dragMoved = true;
+    if (e.pointerType === 'touch') return;
+
+    if (this.isDragging) {
+      const dx = e.clientX - this.lastX;
+      const dy = e.clientY - this.lastY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        this.dragMoved = true;
+        this.callbacks.onUserMoved();
+      }
+      this.lastX = e.clientX;
+      this.lastY = e.clientY;
+      this.cameraCtrl.lookBy(-dx * 0.0032, -dy * 0.0026);
+      return;
     }
-    this.lastX = e.clientX;
-    this.lastY = e.clientY;
-    this.cameraCtrl.lookBy(-dx * 0.0032, -dy * 0.0026);
+
+    // Hover feedback for wooden sign & stones
+    const rect = this.domElement.getBoundingClientRect();
+    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.cameraCtrl.camera);
+
+    const signHits = this.raycaster.intersectObject(this.signBoard.hitMesh, false);
+    const isOverSign = signHits.length > 0;
+    this.signBoard.setHovered(isOverSign);
+
+    if (isOverSign) {
+      this.domElement.style.cursor = 'pointer';
+      return;
+    }
+
+    const stoneHits = this.raycaster.intersectObjects(this.graveManager.getHitboxes(), false);
+    this.domElement.style.cursor = stoneHits.length > 0 ? 'pointer' : 'grab';
   };
 
   private handlePointerUp = (e: PointerEvent) => {
@@ -83,8 +112,10 @@ export class DesktopControls {
     this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
     this.raycaster.setFromCamera(this.pointer, this.cameraCtrl.camera);
-    const targets: THREE.Object3D[] = [this.signMesh, ...this.graveManager.getHitboxes()];
-    const hits = this.raycaster.intersectObjects(targets, false);
+    const hits = this.raycaster.intersectObjects(
+      [this.signBoard.hitMesh, ...this.graveManager.getHitboxes()],
+      false,
+    );
     if (hits.length === 0) return;
 
     const hitObj = hits[0].object;
@@ -100,13 +131,14 @@ export class DesktopControls {
 
   private handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const step = -Math.sign(e.deltaY) * 1.4;
+    this.callbacks.onUserMoved();
+    const step = -Math.sign(e.deltaY) * 1.15;
     this.cameraCtrl.moveLocal(step, 0);
   };
 
   public update(dt: number): void {
     const sprint = this.keys.has('shift') ? 1.8 : 1.0;
-    const speed = 7.2 * sprint * dt;
+    const speed = 6.8 * sprint * dt;
     let forward = 0;
     let right = 0;
 

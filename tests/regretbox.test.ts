@@ -1,18 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { computeGravePlacement } from '../api/_lib/graveGrid';
+import { computeGravePlacement, getPathCenterX } from '../api/_lib/graveGrid';
 import { sanitizeSentence } from '../api/_lib/supabaseAdmin';
-import { formatGraveNumber, parseGraveNumberQuery } from '../src/utils/graves';
-import { resolveTimeOfDay } from '../src/utils/timeTheme';
-
-describe('Time-of-day theme resolver', () => {
-  it('resolves morning, afternoon, dusk, and night from local hours', () => {
-    expect(resolveTimeOfDay(new Date(2026, 10, 25, 7, 30))).toBe('morning');
-    expect(resolveTimeOfDay(new Date(2026, 10, 25, 14, 50))).toBe('afternoon');
-    expect(resolveTimeOfDay(new Date(2026, 10, 25, 17, 15))).toBe('dusk');
-    expect(resolveTimeOfDay(new Date(2026, 10, 25, 21, 0))).toBe('night');
-    expect(resolveTimeOfDay(new Date(2026, 10, 25, 2, 15))).toBe('night');
-  });
-});
+import { DEMO_GRAVES, formatBurialDate, formatGraveNumber, parseGraveNumberQuery } from '../src/utils/graves';
 
 describe('Grave number formatting and parsing', () => {
   it('formats and parses valid grave numbers', () => {
@@ -25,14 +14,32 @@ describe('Grave number formatting and parsing', () => {
   });
 });
 
+describe('Burial date formatting', () => {
+  it('formats date in id-ID D MMM YYYY style', () => {
+    expect(formatBurialDate('2026-11-25T09:00:00Z')).toContain('2026');
+    expect(formatBurialDate('2026-11-25T09:00:00Z')).toContain('Nov');
+  });
+});
+
+describe('Seed data integrity', () => {
+  it('provides 40 graves from #00252 to #00291 matching reference triad', () => {
+    expect(DEMO_GRAVES).toHaveLength(40);
+    const hero = DEMO_GRAVES.find((g) => g.grave_number === 291);
+    const left = DEMO_GRAVES.find((g) => g.grave_number === 290);
+    const right = DEMO_GRAVES.find((g) => g.grave_number === 289);
+    expect(hero?.inscription).toBe('Seharusnya aku tidak membeli itu.');
+    expect(left?.inscription).toBe('Terlalu percaya sama dia...');
+    expect(right?.inscription).toBe('Mungkin aku bisa lebih sabar.');
+  });
+});
+
 describe('Deterministic 3D grave placement', () => {
-  it('generates unique non-overlapping positions outside path and chapel', () => {
+  it('allocates sequential non-overlapping slots from gate outward', () => {
     const coords = new Set<string>();
     for (let slot = 1; slot <= 80; slot += 1) {
       const p = computeGravePlacement(slot);
-      expect(Math.abs(p.posX)).toBeGreaterThanOrEqual(4.4);
-      const inChapel = p.posX > 11.5 && p.posZ > -26.5 && p.posZ < -6.5;
-      expect(inChapel).toBe(false);
+      const pathX = getPathCenterX(p.posZ);
+      expect(Math.abs(p.posX - pathX)).toBeGreaterThanOrEqual(1.4);
       const key = `${p.posX}:${p.posZ}`;
       expect(coords.has(key)).toBe(false);
       coords.add(key);

@@ -18,12 +18,12 @@ export function SearchModal({ onClose, onFound }: SearchModalProps) {
     setError(null);
     setSearching(true);
     try {
-      const result = await searchGraveByNumber(query);
-      if (result.notFound || !result.grave) {
+      const res = await searchGraveByNumber(query);
+      if (res.notFound || !res.grave) {
         setError('Grave not found');
         return;
       }
-      onFound(result.grave);
+      onFound(res.grave);
     } catch {
       setError('Grave not found');
     } finally {
@@ -32,45 +32,50 @@ export function SearchModal({ onClose, onFound }: SearchModalProps) {
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="search-modal-title">
-      <div className="modal-panel" style={{ maxWidth: 440 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <h2 id="search-modal-title" className="serif" style={{ margin: 0, fontSize: '1.7rem' }}>
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="search-modal-title"
+      onClick={onClose}
+    >
+      <div className="modal-card" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h2 id="search-modal-title" className="serif" style={{ margin: 0, fontSize: 28, fontWeight: 600 }}>
             Find a Grave
           </h2>
           <button
             type="button"
-            className="btn btn--ghost btn--sm"
+            className="btn btn--ghost"
             onClick={onClose}
             aria-label="Close search"
-            style={{ minWidth: 44, minHeight: 44, padding: 0 }}
+            style={{ width: 44, padding: 0, borderRadius: '50%' }}
           >
             <X size={18} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="field">
-            <label className="field__label" htmlFor="grave-search-input">
-              Grave Number
-            </label>
-            <input
-              id="grave-search-input"
-              className="input mono"
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. #00291 or 291"
-            />
-          </div>
+          <label htmlFor="grave-search-input" style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>
+            Grave Number
+          </label>
+          <input
+            id="grave-search-input"
+            className="input"
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g. #00291 or 00291"
+            style={{ marginBottom: 12 }}
+          />
 
           {error ? <div className="banner banner--error">{error}</div> : null}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <button type="button" className="btn btn--ghost" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn--primary" disabled={searching || !query.trim()}>
+            <button type="submit" className="btn btn--amber" disabled={searching || !query.trim()}>
               <Search size={16} />
               <span>{searching ? 'Searching...' : 'Locate Grave'}</span>
             </button>

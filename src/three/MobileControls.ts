@@ -2,10 +2,12 @@ import * as THREE from 'three';
 import type { Grave } from '../types/grave';
 import type { CameraController } from './CameraController';
 import type { GraveManager } from './GraveManager';
+import type { SignBoard } from './SignBoard';
 
 export interface MobileControlsCallbacks {
   onSelectGrave: (grave: Grave) => void;
   onOpenBurySign: () => void;
+  onUserMoved: () => void;
 }
 
 export class MobileControls {
@@ -24,7 +26,7 @@ export class MobileControls {
     private domElement: HTMLElement,
     private cameraCtrl: CameraController,
     private graveManager: GraveManager,
-    private signMesh: THREE.Mesh,
+    private signBoard: SignBoard,
     private callbacks: MobileControlsCallbacks,
   ) {
     this.domElement.addEventListener('touchstart', this.handleTouchStart, { passive: true });
@@ -33,6 +35,9 @@ export class MobileControls {
   }
 
   public setJoystickVector(dx: number, dy: number): void {
+    if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
+      this.callbacks.onUserMoved();
+    }
     this.joyX = dx;
     this.joyY = dy;
   }
@@ -58,6 +63,7 @@ export class MobileControls {
     const dy = t.clientY - this.lastY;
     if (Math.hypot(t.clientX - this.startX, t.clientY - this.startY) > 8) {
       this.moved = true;
+      this.callbacks.onUserMoved();
     }
     this.lastX = t.clientX;
     this.lastY = t.clientY;
@@ -78,7 +84,7 @@ export class MobileControls {
 
     this.raycaster.setFromCamera(this.pointer, this.cameraCtrl.camera);
     const hits = this.raycaster.intersectObjects(
-      [this.signMesh, ...this.graveManager.getHitboxes()],
+      [this.signBoard.hitMesh, ...this.graveManager.getHitboxes()],
       false,
     );
     if (hits.length === 0) return;
@@ -96,7 +102,7 @@ export class MobileControls {
 
   public update(dt: number): void {
     if (Math.abs(this.joyX) < 0.05 && Math.abs(this.joyY) < 0.05) return;
-    const speed = 6.2 * dt;
+    const speed = 5.8 * dt;
     this.cameraCtrl.moveLocal(-this.joyY * speed, this.joyX * speed);
   }
 
