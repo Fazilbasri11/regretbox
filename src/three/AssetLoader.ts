@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 function heightToNormalTexture(
   heightCanvas: HTMLCanvasElement,
-  strength = 2.2,
+  strength = 2.0,
   repeatX = 1,
   repeatY = 1,
 ): THREE.CanvasTexture {
@@ -64,7 +64,7 @@ export class AssetLoader {
   public readonly envMap: THREE.Texture;
 
   constructor(renderer: THREE.WebGLRenderer) {
-    const maxAniso = Math.min(16, renderer.capabilities.getMaxAnisotropy());
+    const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     this.stonePBR = this.buildStonePBR(maxAniso);
     this.cobblePBR = this.buildCobblePBR(maxAniso);
     this.woodPBR = this.buildWoodPBR(maxAniso);
@@ -79,7 +79,7 @@ export class AssetLoader {
   }
 
   private buildStonePBR(aniso: number): PBRMapSet {
-    const size = 512;
+    const size = 256;
     const albedoC = document.createElement('canvas');
     const heightC = document.createElement('canvas');
     const roughC = document.createElement('canvas');
@@ -91,49 +91,47 @@ export class AssetLoader {
     const rCtx = roughC.getContext('2d')!;
 
     const grad = aCtx.createLinearGradient(0, 0, 0, size);
-    grad.addColorStop(0, '#858583');
-    grad.addColorStop(0.65, '#70747d');
-    grad.addColorStop(1, '#4d5b49');
+    grad.addColorStop(0, '#9e9f9d');
+    grad.addColorStop(0.65, '#868b96');
+    grad.addColorStop(1, '#5d6e58');
     aCtx.fillStyle = grad;
     aCtx.fillRect(0, 0, size, size);
 
     hCtx.fillStyle = '#808080';
     hCtx.fillRect(0, 0, size, size);
-    rCtx.fillStyle = '#e0e0e0';
+    rCtx.fillStyle = '#dcdcdc';
     rCtx.fillRect(0, 0, size, size);
 
-    for (let i = 0; i < 65; i += 1) {
-      const x = (i * 89) % size;
-      const w = 4 + (i % 9);
-      const len = 140 + ((i * 37) % 260);
-      aCtx.fillStyle = 'rgba(28, 32, 40, 0.14)';
+    for (let i = 0; i < 36; i += 1) {
+      const x = (i * 47) % size;
+      const w = 2 + (i % 5);
+      const len = 70 + ((i * 23) % 130);
+      aCtx.fillStyle = 'rgba(30, 34, 42, 0.14)';
       aCtx.fillRect(x, 0, w, len);
-      hCtx.fillStyle = 'rgba(95, 95, 95, 0.35)';
+      hCtx.fillStyle = 'rgba(98, 98, 98, 0.35)';
       hCtx.fillRect(x, 0, w, len);
     }
 
-    for (let i = 0; i < 8000; i += 1) {
-      const x = (i * 73) % size;
-      const y = (i * 139) % size;
-      const v = 90 + ((i * 29) % 70);
-      aCtx.fillStyle = `rgba(${v}, ${v + 2}, ${v + 5}, 0.25)`;
+    for (let i = 0; i < 2400; i += 1) {
+      const x = (i * 53) % size;
+      const y = (i * 97) % size;
+      const v = 105 + ((i * 29) % 70);
+      aCtx.fillStyle = `rgba(${v}, ${v + 2}, ${v + 5}, 0.24)`;
       aCtx.fillRect(x, y, 2, 2);
 
-      const hv = 105 + ((i * 41) % 55);
+      const hv = 110 + ((i * 37) % 50);
       hCtx.fillStyle = `rgb(${hv}, ${hv}, ${hv})`;
       hCtx.fillRect(x, y, 2, 2);
     }
 
-    for (let i = 0; i < 320; i += 1) {
-      const x = (i * 47) % size;
-      const y = size * 0.72 + ((i * 61) % (size * 0.28));
-      const r = 3 + (i % 7);
-      aCtx.fillStyle = 'rgba(63, 90, 58, 0.32)';
+    for (let i = 0; i < 90; i += 1) {
+      const x = (i * 37) % size;
+      const y = size * 0.78 + ((i * 43) % (size * 0.22));
+      const r = 3 + (i % 6);
+      aCtx.fillStyle = 'rgba(72, 98, 66, 0.14)';
       aCtx.beginPath();
       aCtx.arc(x, y, r, 0, Math.PI * 2);
       aCtx.fill();
-      rCtx.fillStyle = '#f2f2f2';
-      rCtx.fillRect(x - r, y - r, r * 2, r * 2);
     }
 
     const map = new THREE.CanvasTexture(albedoC);
@@ -141,7 +139,7 @@ export class AssetLoader {
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = aniso;
 
-    const normalMap = heightToNormalTexture(heightC, 2.4, 1, 1);
+    const normalMap = heightToNormalTexture(heightC, 2.0, 1, 1);
     normalMap.anisotropy = aniso;
 
     const roughnessMap = new THREE.CanvasTexture(roughC);
@@ -152,7 +150,7 @@ export class AssetLoader {
   }
 
   private buildCobblePBR(aniso: number): PBRMapSet {
-    const size = 512;
+    const size = 256;
     const albedoC = document.createElement('canvas');
     const heightC = document.createElement('canvas');
     const roughC = document.createElement('canvas');
@@ -163,15 +161,15 @@ export class AssetLoader {
     const hCtx = heightC.getContext('2d')!;
     const rCtx = roughC.getContext('2d')!;
 
-    aCtx.fillStyle = '#18211a';
+    aCtx.fillStyle = '#243225';
     aCtx.fillRect(0, 0, size, size);
     hCtx.fillStyle = '#202020';
     hCtx.fillRect(0, 0, size, size);
-    rCtx.fillStyle = '#dcdcdc';
+    rCtx.fillStyle = '#dadada';
     rCtx.fillRect(0, 0, size, size);
 
-    const rows = 9;
-    const cols = 7;
+    const rows = 7;
+    const cols = 6;
     const cellW = size / cols;
     const cellH = size / rows;
 
@@ -179,40 +177,40 @@ export class AssetLoader {
       for (let c = 0; c < cols; c += 1) {
         const seed = r * 31 + c * 17;
         const offset = (r % 2) * (cellW * 0.48);
-        const cx = ((c * cellW + offset) % size) + ((seed % 5) - 2) * 2;
-        const cy = r * cellH + ((seed % 7) - 3) * 1.5;
-        const w = cellW * (0.78 + (seed % 3) * 0.05);
-        const h = cellH * (0.74 + (seed % 4) * 0.04);
+        const cx = ((c * cellW + offset) % size) + ((seed % 3) - 1) * 1.5;
+        const cy = r * cellH + ((seed % 5) - 2);
+        const w = cellW * 0.78;
+        const h = cellH * 0.74;
 
-        const shade = 98 + (seed % 46);
-        aCtx.fillStyle = `rgb(${shade}, ${shade + 6}, ${shade + 16})`;
+        const shade = 108 + (seed % 46);
+        aCtx.fillStyle = `rgb(${shade}, ${shade + 7}, ${shade + 18})`;
         aCtx.beginPath();
-        aCtx.roundRect(cx + 4, cy + 4, w, h, 14);
+        aCtx.roundRect(cx + 2, cy + 2, w, h, 8);
         aCtx.fill();
 
         const heightVal = 185 + (seed % 65);
         hCtx.fillStyle = `rgb(${heightVal}, ${heightVal}, ${heightVal})`;
         hCtx.beginPath();
-        hCtx.roundRect(cx + 5, cy + 5, w - 2, h - 2, 14);
+        hCtx.roundRect(cx + 2, cy + 2, w - 1, h - 1, 8);
         hCtx.fill();
 
-        const roughVal = 56 + (seed % 34);
+        const roughVal = 52 + (seed % 32);
         rCtx.fillStyle = `rgb(${roughVal}, ${roughVal}, ${roughVal})`;
         rCtx.beginPath();
-        rCtx.roundRect(cx + 6, cy + 6, w - 4, h - 4, 14);
+        rCtx.roundRect(cx + 3, cy + 3, w - 2, h - 2, 8);
         rCtx.fill();
       }
     }
 
     const repeatX = 1.6;
-    const repeatY = 18;
+    const repeatY = 20;
     const map = new THREE.CanvasTexture(albedoC);
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
     map.repeat.set(repeatX, repeatY);
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = aniso;
 
-    const normalMap = heightToNormalTexture(heightC, 3.6, repeatX, repeatY);
+    const normalMap = heightToNormalTexture(heightC, 3.0, repeatX, repeatY);
     normalMap.anisotropy = aniso;
 
     const roughnessMap = new THREE.CanvasTexture(roughC);
@@ -224,7 +222,7 @@ export class AssetLoader {
   }
 
   private buildWoodPBR(aniso: number): PBRMapSet {
-    const size = 512;
+    const size = 256;
     const albedoC = document.createElement('canvas');
     const heightC = document.createElement('canvas');
     const roughC = document.createElement('canvas');
@@ -235,7 +233,7 @@ export class AssetLoader {
     const hCtx = heightC.getContext('2d')!;
     const rCtx = roughC.getContext('2d')!;
 
-    aCtx.fillStyle = '#3d2a1c';
+    aCtx.fillStyle = '#4a3322';
     aCtx.fillRect(0, 0, size, size);
     hCtx.fillStyle = '#888888';
     hCtx.fillRect(0, 0, size, size);
@@ -243,8 +241,8 @@ export class AssetLoader {
     rCtx.fillRect(0, 0, size, size);
 
     for (let y = 0; y < size; y += 3) {
-      const wave = Math.sin(y * 0.08) * 14;
-      const shade = 42 + ((y * 13) % 24);
+      const wave = Math.sin(y * 0.14) * 8;
+      const shade = 52 + ((y * 13) % 24);
       aCtx.strokeStyle = `rgba(${shade + 18}, ${shade + 4}, ${shade - 8}, 0.55)`;
       aCtx.lineWidth = 2;
       aCtx.beginPath();
@@ -263,7 +261,7 @@ export class AssetLoader {
     const map = new THREE.CanvasTexture(albedoC);
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = aniso;
-    const normalMap = heightToNormalTexture(heightC, 2.0, 1, 1);
+    const normalMap = heightToNormalTexture(heightC, 1.8, 1, 1);
     normalMap.anisotropy = aniso;
     const roughnessMap = new THREE.CanvasTexture(roughC);
     roughnessMap.anisotropy = aniso;
@@ -272,24 +270,25 @@ export class AssetLoader {
   }
 
   private buildGrassMap(aniso: number): THREE.CanvasTexture {
+    const size = 256;
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#152319';
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillStyle = '#243a29';
+    ctx.fillRect(0, 0, size, size);
 
-    for (let i = 0; i < 9500; i += 1) {
-      const x = (i * 53) % 512;
-      const y = (i * 97) % 512;
-      const g = 24 + ((i * 19) % 30);
-      ctx.fillStyle = `rgba(${Math.round(g * 0.58)}, ${g + 12}, ${Math.round(g * 0.6)}, 0.45)`;
-      ctx.fillRect(x, y, 2, 4);
+    for (let i = 0; i < 3200; i += 1) {
+      const x = (i * 53) % size;
+      const y = (i * 97) % size;
+      const g = 38 + ((i * 19) % 36);
+      ctx.fillStyle = `rgba(${Math.round(g * 0.62)}, ${g + 14}, ${Math.round(g * 0.64)}, 0.45)`;
+      ctx.fillRect(x, y, 2, 3);
     }
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(28, 28);
+    tex.repeat.set(30, 30);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = aniso;
     return tex;
@@ -297,23 +296,22 @@ export class AssetLoader {
 
   private buildMoonMap(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d')!;
-    const grad = ctx.createRadialGradient(256, 256, 30, 256, 256, 250);
-    grad.addColorStop(0, '#fdfeff');
-    grad.addColorStop(0.72, '#dce6ff');
-    grad.addColorStop(1, '#b6c6ec');
+    const grad = ctx.createRadialGradient(128, 128, 15, 128, 128, 125);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.72, '#e4ecff');
+    grad.addColorStop(1, '#c0cff2');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 256, 256);
 
     const maria = [
-      [178, 175, 68, 0.16],
-      [310, 148, 48, 0.13],
-      [330, 286, 74, 0.17],
-      [196, 336, 56, 0.14],
-      [250, 240, 36, 0.11],
-      [130, 255, 42, 0.12],
+      [89, 88, 34, 0.16],
+      [155, 74, 24, 0.13],
+      [165, 143, 37, 0.17],
+      [98, 168, 28, 0.14],
+      [125, 120, 18, 0.11],
     ];
     for (const [cx, cy, r, a] of maria) {
       ctx.fillStyle = `rgba(116, 134, 172, ${a})`;
@@ -329,16 +327,16 @@ export class AssetLoader {
 
   private buildGlowMap(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
+    canvas.width = 128;
+    canvas.height = 128;
     const ctx = canvas.getContext('2d')!;
-    const g = ctx.createRadialGradient(128, 128, 2, 128, 128, 102);
+    const g = ctx.createRadialGradient(64, 64, 1, 64, 64, 52);
     g.addColorStop(0, 'rgba(255, 224, 168, 0.95)');
-    g.addColorStop(0.22, 'rgba(255, 180, 90, 0.55)');
-    g.addColorStop(0.55, 'rgba(255, 150, 60, 0.16)');
+    g.addColorStop(0.25, 'rgba(255, 180, 90, 0.55)');
+    g.addColorStop(0.6, 'rgba(255, 150, 60, 0.15)');
     g.addColorStop(1, 'rgba(255, 140, 40, 0.0)');
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 256, 256);
+    ctx.fillRect(0, 0, 128, 128);
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -347,34 +345,33 @@ export class AssetLoader {
 
   private buildMistMap(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, 512, 512);
+    ctx.clearRect(0, 0, 256, 256);
 
-    for (let i = 0; i < 36; i += 1) {
+    for (let i = 0; i < 24; i += 1) {
       const ang = (i * 2.399) % (Math.PI * 2);
-      const dist = 30 + ((i * 37) % 110);
-      const x = 256 + Math.cos(ang) * dist;
-      const y = 256 + Math.sin(ang) * dist;
-      const r = 55 + (i % 4) * 20;
+      const dist = 16 + ((i * 19) % 54);
+      const x = 128 + Math.cos(ang) * dist;
+      const y = 128 + Math.sin(ang) * dist;
+      const r = 28 + (i % 4) * 10;
       const g = ctx.createRadialGradient(x, y, 2, x, y, r);
-      g.addColorStop(0, 'rgba(205, 220, 255, 0.16)');
-      g.addColorStop(1, 'rgba(205, 220, 255, 0.0)');
+      g.addColorStop(0, 'rgba(220, 232, 255, 0.22)');
+      g.addColorStop(1, 'rgba(220, 232, 255, 0.0)');
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Smooth radial edge fade so sprite bounds are completely invisible
     ctx.globalCompositeOperation = 'destination-in';
-    const mask = ctx.createRadialGradient(256, 256, 40, 256, 256, 236);
+    const mask = ctx.createRadialGradient(128, 128, 20, 128, 128, 118);
     mask.addColorStop(0, 'rgba(255, 255, 255, 1)');
     mask.addColorStop(0.65, 'rgba(255, 255, 255, 0.6)');
     mask.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = mask;
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 256, 256);
     ctx.globalCompositeOperation = 'source-over';
 
     const tex = new THREE.CanvasTexture(canvas);
@@ -396,10 +393,10 @@ export class AssetLoader {
     const cCtx = c.getContext('2d')!;
     const eCtx = e.getContext('2d')!;
 
-    cCtx.fillStyle = '#3b281a';
+    cCtx.fillStyle = '#4c3422';
     cCtx.fillRect(0, 0, w, h);
     for (let y = 8; y < h; y += 14) {
-      cCtx.strokeStyle = 'rgba(18, 10, 4, 0.38)';
+      cCtx.strokeStyle = 'rgba(22, 12, 5, 0.38)';
       cCtx.lineWidth = 3;
       cCtx.beginPath();
       cCtx.moveTo(0, y);
@@ -433,7 +430,7 @@ export class AssetLoader {
       ctx.stroke();
     };
 
-    drawSignText(cCtx, '#ffd9a0');
+    drawSignText(cCtx, '#ffe2b0');
     drawSignText(eCtx, '#ffb45a');
 
     const textMap = new THREE.CanvasTexture(c);
@@ -452,20 +449,20 @@ export class AssetLoader {
     const envScene = new THREE.Scene();
 
     const dome = new THREE.Mesh(
-      new THREE.SphereGeometry(20, 16, 12),
-      new THREE.MeshBasicMaterial({ color: 0x162244, side: THREE.BackSide }),
+      new THREE.SphereGeometry(20, 12, 8),
+      new THREE.MeshBasicMaterial({ color: 0x263766, side: THREE.BackSide }),
     );
     envScene.add(dome);
 
     const moonSpot = new THREE.Mesh(
-      new THREE.SphereGeometry(2.2, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xdce6ff }),
+      new THREE.SphereGeometry(2.6, 8, 8),
+      new THREE.MeshBasicMaterial({ color: 0xecf3ff }),
     );
     moonSpot.position.set(8, 10, -14);
     envScene.add(moonSpot);
 
     const lanternSpot = new THREE.Mesh(
-      new THREE.SphereGeometry(1.4, 8, 8),
+      new THREE.SphereGeometry(1.6, 8, 8),
       new THREE.MeshBasicMaterial({ color: 0xffb45a }),
     );
     lanternSpot.position.set(-4, 1.5, 4);

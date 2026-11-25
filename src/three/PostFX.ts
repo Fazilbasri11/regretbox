@@ -1,13 +1,8 @@
 import {
-  BlendFunction,
   BloomEffect,
-  DepthOfFieldEffect,
   EffectComposer,
   EffectPass,
-  NoiseEffect,
   RenderPass,
-  SMAAEffect,
-  SMAAPreset,
   ToneMappingEffect,
   ToneMappingMode,
   VignetteEffect,
@@ -37,51 +32,40 @@ export class PostFX {
     this.bloom = null;
 
     if (tier === 'low') {
-      // Low tier skips EffectComposer so sprite glows handle bloom cheaply
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      this.renderer.toneMappingExposure = 1.08;
+      this.renderer.toneMappingExposure = 1.24;
       return;
     }
 
+    // NoToneMapping on renderer when ToneMappingEffect handles ACES inside EffectComposer
     this.renderer.toneMapping = THREE.NoToneMapping;
 
     const composer = new EffectComposer(this.renderer, {
       frameBufferType: THREE.HalfFloatType,
+      multisampling: tier === 'high' ? 2 : 0,
     });
     composer.addPass(new RenderPass(this.scene, this.camera));
 
+    // Lightweight Bloom + Vignette + ACES (DepthOfField removed so clicked stones stay razor sharp & FPS stays high)
     const bloom = new BloomEffect({
-      luminanceThreshold: 0.85,
-      intensity: tier === 'high' ? 0.78 : 0.58,
+      luminanceThreshold: 0.82,
+      intensity: tier === 'high' ? 0.65 : 0.48,
       mipmapBlur: true,
-      radius: 0.6,
+      radius: 0.55,
     });
     this.bloom = bloom;
 
-    const dof = new DepthOfFieldEffect(this.camera, {
-      focusDistance: 0.032,
-      focalLength: 0.04,
-      bokehScale: tier === 'high' ? 1.5 : 1.1,
-    });
-
     const vignette = new VignetteEffect({
       eskil: false,
-      offset: 0.2,
-      darkness: 0.35,
+      offset: 0.22,
+      darkness: 0.3,
     });
-
-    const noise = new NoiseEffect({
-      blendFunction: BlendFunction.SOFT_LIGHT,
-    });
-    noise.blendMode.opacity.value = 0.03;
 
     const toneMapping = new ToneMappingEffect({
       mode: ToneMappingMode.ACES_FILMIC,
     });
 
-    const smaa = new SMAAEffect({ preset: SMAAPreset.MEDIUM });
-
-    composer.addPass(new EffectPass(this.camera, dof, bloom, vignette, noise, toneMapping, smaa));
+    composer.addPass(new EffectPass(this.camera, bloom, vignette, toneMapping));
     this.composer = composer;
   }
 

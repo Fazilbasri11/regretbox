@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { computeGravePlacement, getPathCenterX } from '../api/_lib/graveGrid';
+import { computeGravePlacement } from '../api/_lib/graveGrid';
 import { sanitizeSentence } from '../api/_lib/supabaseAdmin';
+import { computeLanternPositions } from '../src/three/Lanterns';
+import { getPathCenterX, getTerrainHeight, PATH_HALF_WIDTH } from '../src/three/terrain';
 import { DEMO_GRAVES, formatBurialDate, formatGraveNumber, parseGraveNumberQuery } from '../src/utils/graves';
 
 describe('Grave number formatting and parsing', () => {
@@ -21,8 +23,8 @@ describe('Burial date formatting', () => {
   });
 });
 
-describe('Seed data integrity', () => {
-  it('provides 40 graves from #00252 to #00291 matching reference triad', () => {
+describe('Seed data integrity & neutral styling', () => {
+  it('provides 40 neutral graves with rolling hill elevation and spacious separation', () => {
     expect(DEMO_GRAVES).toHaveLength(40);
     const hero = DEMO_GRAVES.find((g) => g.grave_number === 291);
     const left = DEMO_GRAVES.find((g) => g.grave_number === 290);
@@ -30,19 +32,42 @@ describe('Seed data integrity', () => {
     expect(hero?.inscription).toBe('Seharusnya aku tidak membeli itu.');
     expect(left?.inscription).toBe('Terlalu percaya sama dia...');
     expect(right?.inscription).toBe('Mungkin aku bisa lebih sabar.');
+
+    for (const g of DEMO_GRAVES) {
+      expect(['arched', 'slim', 'pillar', 'scroll']).toContain(g.grave_style);
+      expect(g.pos_y).toBeGreaterThanOrEqual(0);
+    }
+    expect(DEMO_GRAVES[0].pos_y).toBeGreaterThan(0.3);
   });
 });
 
-describe('Deterministic 3D grave placement', () => {
-  it('allocates sequential non-overlapping slots from gate outward', () => {
-    const coords = new Set<string>();
-    for (let slot = 1; slot <= 80; slot += 1) {
-      const p = computeGravePlacement(slot);
+describe('Deterministic 3D grave placement & terrain', () => {
+  it('allocates spacious non-overlapping slots off the path', () => {
+    const placements = Array.from({ length: 80 }, (_, idx) => computeGravePlacement(idx + 1));
+    for (let i = 0; i < placements.length; i += 1) {
+      const p = placements[i];
       const pathX = getPathCenterX(p.posZ);
-      expect(Math.abs(p.posX - pathX)).toBeGreaterThanOrEqual(1.4);
-      const key = `${p.posX}:${p.posZ}`;
-      expect(coords.has(key)).toBe(false);
-      coords.add(key);
+      expect(Math.abs(p.posX - pathX)).toBeGreaterThanOrEqual(1.8);
+      for (let j = i + 1; j < placements.length; j += 1) {
+        const q = placements[j];
+        const dist = Math.hypot(p.posX - q.posX, p.posZ - q.posZ);
+        expect(dist).toBeGreaterThanOrEqual(3.2);
+      }
+    }
+    expect(getTerrainHeight(-8, -20)).toBeGreaterThan(getTerrainHeight(0, 4));
+  });
+});
+
+describe('Off-road lantern placement', () => {
+  it('places every lantern outside the cobblestone road surface', () => {
+    const hero = DEMO_GRAVES.find((g) => g.grave_number === 291) || null;
+    const left = DEMO_GRAVES.find((g) => g.grave_number === 290) || null;
+    const right = DEMO_GRAVES.find((g) => g.grave_number === 289) || null;
+    const lanterns = computeLanternPositions(hero, left, right);
+
+    for (const l of lanterns) {
+      const pathX = getPathCenterX(l.z);
+      expect(Math.abs(l.x - pathX)).toBeGreaterThanOrEqual(PATH_HALF_WIDTH + 0.5);
     }
   });
 });

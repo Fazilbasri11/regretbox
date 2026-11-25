@@ -1,8 +1,5 @@
-# RegretBox Asset Credits & Fallback Notice
+# RegretBox Asset Credits & Attribution
 
-RegretBox v3.0 supports self-hosted GLB models and KTX2/WebP textures placed in `public/models/` and `public/textures/` (see Section 10 of `REGRETBOX_PRODUCT_SPEC.md`).
-
-## Current Status
+- **Ambient Night Audio:** `public/audio/night-ambient.wav` (`mixkit-night-forest-with-insects-2414.wav`) — Mixkit Free Sound Effects License.
 - **Fonts:** `@fontsource/cormorant-garamond` and `@fontsource/inter` (self-hosted WOFF2 bundled by Vite, OFL-1.1).
-- **3D Models & PBR Textures:** Currently using high-detail sculpted procedural geometry (`ExtrudeGeometry` with bevels, recessed stone frames, vertex weathering noise, recursive `TubeGeometry` branches, custom shader grass) and procedural 1024–2048px CanvasTexture PBR maps (Albedo, Normal, Roughness, Emissive).
-- **External GLB/KTX2 Assets:** None bundled yet; dropping `.glb` / `.webp` / `.hdr` files into the documented `public/models/` and `public/textures/` paths can replace any procedural asset seamlessly.
+- **3D Models & PBR Textures:** Sculpted procedural geometry (`ExtrudeGeometry` with bevels, recursive `TubeGeometry` branches, rolling terrain displacement) and procedural CanvasTexture PBR maps.

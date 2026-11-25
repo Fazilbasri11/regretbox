@@ -31,7 +31,7 @@ export class PerformanceManager {
 
   constructor(initialSetting: QualitySetting = 'auto', onTierDowngrade?: (tier: QualityTier) => void) {
     this.setting = initialSetting;
-    this.activeTier = initialSetting === 'auto' ? detectInitialTier() : initialSetting;
+    this.activeTier = initialSetting === 'auto' ? detectInitialTier() : settingToTier(initialSetting);
     this.onTierDowngrade = onTierDowngrade;
   }
 
@@ -53,7 +53,6 @@ export class PerformanceManager {
     this.frameTimes = [];
     this.sampleStart = now;
 
-    // Budget: ~28ms (~35fps floor) on High, ~42ms (~24fps floor) on Medium
     if (this.activeTier === 'high' && avg > 34) {
       this.activeTier = 'medium';
       this.onTierDowngrade?.('medium');
@@ -66,7 +65,11 @@ export class PerformanceManager {
   public getMaxPixelRatio(): number {
     const isMobile = window.innerWidth < 768;
     if (this.activeTier === 'low') return 1;
-    if (this.activeTier === 'medium') return Math.min(window.devicePixelRatio || 1, 1.5);
-    return Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
+    if (this.activeTier === 'medium') return Math.min(window.devicePixelRatio || 1, 1.25);
+    return Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.5);
   }
+}
+
+function settingToTier(s: QualityTier): QualityTier {
+  return s;
 }

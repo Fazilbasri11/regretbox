@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Grave, GraveStyle } from '../types/grave';
 import type { AssetLoader } from './AssetLoader';
 import { InscriptionTextureCache } from './InscriptionTexture';
+import { getTerrainHeight } from './terrain';
 import { createTombstoneGeometries, type TombstoneGeometries } from './Tombstone';
 
 interface PlaqueSlot {
@@ -37,32 +38,32 @@ export class GraveManager {
       map: assets.stonePBR.map,
       normalMap: assets.stonePBR.normalMap,
       roughnessMap: assets.stonePBR.roughnessMap,
-      color: 0xb6bbc4,
-      roughness: 0.86,
+      color: 0xc8cdd6,
+      roughness: 0.85,
       metalness: 0.04,
       envMap: assets.envMap,
-      envMapIntensity: 0.65,
+      envMapIntensity: 0.72,
     });
 
     this.plinthMat = new THREE.MeshStandardMaterial({
       map: assets.stonePBR.map,
       normalMap: assets.stonePBR.normalMap,
-      color: 0x737882,
-      roughness: 0.92,
+      color: 0x828894,
+      roughness: 0.9,
     });
 
     this.moundMat = new THREE.MeshStandardMaterial({
-      color: 0x191714,
-      roughness: 0.98,
+      color: 0x1e241c,
+      roughness: 0.96,
     });
 
     this.highlightRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.95, 1.15, 32),
+      new THREE.RingGeometry(0.95, 1.12, 28),
       new THREE.MeshBasicMaterial({
         color: 0xffb45a,
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.65,
       }),
     );
     this.highlightRing.rotation.x = -Math.PI / 2;
@@ -73,15 +74,15 @@ export class GraveManager {
     this.highlightLight.visible = false;
     this.scene.add(this.highlightLight);
 
-    // Pool of 24 recessed engraved plaque faces for nearest graves (within 18m)
     const plaqueGeo = new THREE.PlaneGeometry(0.84, 1.05);
-    for (let i = 0; i < 24; i += 1) {
+    for (let i = 0; i < 20; i += 1) {
       const mat = new THREE.MeshStandardMaterial({
+        normalMap: assets.stonePBR.normalMap,
+        normalScale: new THREE.Vector2(0.35, 0.35),
         roughness: 0.84,
         metalness: 0.04,
-        normalScale: new THREE.Vector2(0.4, 0.4),
         envMap: assets.envMap,
-        envMapIntensity: 0.4,
+        envMapIntensity: 0.45,
       });
       const mesh = new THREE.Mesh(plaqueGeo, mat);
       mesh.visible = false;
@@ -93,6 +94,18 @@ export class GraveManager {
   public setGraves(graves: Grave[]): void {
     this.graves = graves;
     this.rebuildInstances();
+  }
+
+  private getGroundY(g: Grave): number {
+    return typeof g.pos_y === 'number' && g.pos_y !== 0
+      ? g.pos_y
+      : getTerrainHeight(g.pos_x, g.pos_z);
+  }
+
+  private resolveStyle(style: string): GraveStyle {
+    if (style === 'slim' || style === 'pillar' || style === 'scroll') return style;
+    if (style === 'cross') return 'pillar';
+    return 'arched';
   }
 
   private clearInstances(): void {
@@ -116,7 +129,6 @@ export class GraveManager {
     const dummy = new THREE.Object3D();
     const tintColor = new THREE.Color();
 
-    // Plinths & earth mounds
     const plinths = new THREE.InstancedMesh(this.geos.plinth, this.plinthMat, this.graves.length);
     const mounds = new THREE.InstancedMesh(this.geos.mound, this.moundMat, this.graves.length);
     plinths.receiveShadow = true;
@@ -124,22 +136,22 @@ export class GraveManager {
     mounds.receiveShadow = true;
 
     this.graves.forEach((g, idx) => {
+      const gy = this.getGroundY(g);
       const scaleVar = g.slot_index >= 38 ? 1.0 : 0.92 + ((g.grave_number * 13) % 16) * 0.01;
       const tiltZ = g.slot_index >= 38 ? 0 : (((g.grave_number % 7) - 3) * 0.012);
 
-      dummy.position.set(g.pos_x, g.pos_y, g.pos_z);
+      dummy.position.set(g.pos_x, gy, g.pos_z);
       dummy.rotation.set(0, g.rotation_y, tiltZ);
       dummy.scale.set(scaleVar, scaleVar, scaleVar);
       dummy.updateMatrix();
       plinths.setMatrixAt(idx, dummy.matrix);
       mounds.setMatrixAt(idx, dummy.matrix);
 
-      // Click/tap raycast hitbox
       const hb = new THREE.Mesh(
         new THREE.BoxGeometry(1.3, 1.9, 0.9),
         new THREE.MeshBasicMaterial({ visible: false }),
       );
-      hb.position.set(g.pos_x, g.pos_y + 0.95, g.pos_z);
+      hb.position.set(g.pos_x, gy + 0.95, g.pos_z);
       hb.rotation.y = g.rotation_y;
       hb.userData = { grave: g };
       this.root.add(hb);
@@ -151,11 +163,14 @@ export class GraveManager {
     this.root.add(plinths, mounds);
     this.instancedMeshes.push(plinths, mounds);
 
-    // Tombstone bodies split by style & LOD (LOD0 for frontier/near stones, LOD1 for distant)
-    const styles: GraveStyle[] = ['arched', 'slim', 'cross', 'scroll'];
+    const styles: GraveStyle[] = ['arched', 'slim', 'pillar', 'scroll'];
     for (const style of styles) {
-      const nearItems = this.graves.filter((g) => g.grave_style === style && g.slot_index >= 29);
-      const farItems = this.graves.filter((g) => g.grave_style === style && g.slot_index < 29);
+      const nearItems = this.graves.filter(
+        (g) => this.resolveStyle(g.grave_style) === style && g.slot_index >= 29,
+      );
+      const farItems = this.graves.filter(
+        (g) => this.resolveStyle(g.grave_style) === style && g.slot_index < 29,
+      );
 
       for (const [items, geo] of [
         [nearItems, this.geos.lod0[style]],
@@ -167,16 +182,16 @@ export class GraveManager {
         mesh.receiveShadow = true;
 
         items.forEach((g, idx) => {
+          const gy = this.getGroundY(g);
           const scaleVar = g.slot_index >= 38 ? 1.0 : 0.92 + ((g.grave_number * 13) % 16) * 0.01;
           const tiltZ = g.slot_index >= 38 ? 0 : (((g.grave_number % 7) - 3) * 0.012);
 
-          dummy.position.set(g.pos_x, g.pos_y + 0.14, g.pos_z);
+          dummy.position.set(g.pos_x, gy + 0.14, g.pos_z);
           dummy.rotation.set(0, g.rotation_y, tiltZ);
           dummy.scale.set(scaleVar, scaleVar, scaleVar);
           dummy.updateMatrix();
           mesh.setMatrixAt(idx, dummy.matrix);
 
-          // ±6% stone tint variation
           const tint = 0.94 + ((g.grave_number * 17) % 13) * 0.01;
           tintColor.setRGB(tint, tint * 0.99, tint * 0.97);
           mesh.setColorAt(idx, tintColor);
@@ -197,7 +212,7 @@ export class GraveManager {
         const dz = g.pos_z - cameraPos.z;
         return { grave: g, distSq: dx * dx + dz * dz };
       })
-      .filter((entry) => entry.distSq <= 22 * 22 || entry.grave.id === this.selectedGraveId)
+      .filter((entry) => entry.distSq <= 26 * 26 || entry.grave.id === this.selectedGraveId)
       .sort((a, b) => a.distSq - b.distSq)
       .slice(0, this.plaquePool.length);
 
@@ -210,15 +225,16 @@ export class GraveManager {
 
       const g = entry.grave;
       const isSelected = g.id === this.selectedGraveId;
-      const resolution = isSelected ? 2048 : 1024;
-      const { colorMap, normalMap } = this.plaqueCache.get(g, resolution);
+      const isForeground = g.slot_index >= 38;
+      const resolution = isSelected || isForeground ? 1024 : 512;
+      const colorMap = this.plaqueCache.get(g, resolution);
 
       if (slot.mat.map !== colorMap) {
         slot.mat.map = colorMap;
-        slot.mat.normalMap = normalMap;
         slot.mat.needsUpdate = true;
       }
 
+      const gy = this.getGroundY(g);
       const scaleVar = g.slot_index >= 38 ? 1.0 : 0.92 + ((g.grave_number * 13) % 16) * 0.01;
       const tiltZ = g.slot_index >= 38 ? 0 : (((g.grave_number % 7) - 3) * 0.012);
       const forwardOffset = 0.192 * scaleVar;
@@ -227,7 +243,7 @@ export class GraveManager {
 
       slot.mesh.position.set(
         g.pos_x + sin * forwardOffset,
-        g.pos_y + 0.14 + 0.66 * scaleVar,
+        gy + 0.14 + 0.66 * scaleVar,
         g.pos_z + cos * forwardOffset,
       );
       slot.mesh.rotation.set(0, g.rotation_y, tiltZ);
@@ -244,9 +260,10 @@ export class GraveManager {
       return;
     }
 
-    this.highlightRing.position.set(grave.pos_x, 0.05, grave.pos_z);
+    const gy = this.getGroundY(grave);
+    this.highlightRing.position.set(grave.pos_x, gy + 0.05, grave.pos_z);
     this.highlightRing.visible = true;
-    this.highlightLight.position.set(grave.pos_x, 1.1, grave.pos_z + 0.9);
+    this.highlightLight.position.set(grave.pos_x, gy + 1.1, grave.pos_z + 0.9);
     this.highlightLight.visible = true;
   }
 
@@ -254,7 +271,7 @@ export class GraveManager {
     return this.hitboxes;
   }
 
-  public findClosestGraveInView(camera: THREE.Camera, maxDistance = 12): Grave | null {
+  public findClosestGraveInView(camera: THREE.Camera, maxDistance = 14): Grave | null {
     const camDir = new THREE.Vector3();
     camera.getWorldDirection(camDir);
     let best: Grave | null = null;
@@ -281,7 +298,6 @@ export class GraveManager {
     this.plaqueCache.dispose();
     Object.values(this.geos.lod0).forEach((g) => g.dispose());
     Object.values(this.geos.lod1).forEach((g) => g.dispose());
-    Object.values(this.geos.lod2).forEach((g) => g.dispose());
     this.geos.plinth.dispose();
     this.geos.mound.dispose();
     this.stoneMat.dispose();

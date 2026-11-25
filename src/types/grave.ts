@@ -1,6 +1,6 @@
 export type CemeteryZone = 'entrance' | 'new_cemetery' | 'old_cemetery' | 'memorial_garden';
 
-export type GraveStyle = 'arched' | 'slim' | 'cross' | 'scroll';
+export type GraveStyle = 'arched' | 'slim' | 'pillar' | 'scroll';
 
 export interface Grave {
   id: string;

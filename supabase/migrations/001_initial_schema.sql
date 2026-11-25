@@ -1,5 +1,4 @@
--- RegretBox v3.0 Schema: Anonymous Public Digital Cemetery
--- Grave styles: arched (45%), slim (25%), cross (15%), scroll (15%)
+-- RegretBox v3.0 Schema (Neutral monument styles: arched, slim, pillar, scroll)
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -18,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.graves (
   pos_z real NOT NULL,
   rotation_y real NOT NULL DEFAULT 0,
   grave_style text NOT NULL DEFAULT 'arched' CHECK (
-    grave_style IN ('arched', 'slim', 'cross', 'scroll')
+    grave_style IN ('arched', 'slim', 'pillar', 'scroll')
   ),
   created_at timestamptz NOT NULL DEFAULT now(),
   moderation_status text NOT NULL DEFAULT 'visible' CHECK (

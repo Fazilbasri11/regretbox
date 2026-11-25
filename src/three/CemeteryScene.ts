@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { getPathCenterX } from '../../api/_lib/graveGrid';
 import type { Grave } from '../types/grave';
 import { AssetLoader } from './AssetLoader';
 import { Atmosphere } from './Atmosphere';
@@ -8,7 +7,7 @@ import { CameraController } from './CameraController';
 import { DesktopControls } from './DesktopControls';
 import { Environment } from './Environment';
 import { GraveManager } from './GraveManager';
-import { Lanterns } from './Lanterns';
+import { computeLanternPositions, Lanterns } from './Lanterns';
 import { Lighting } from './Lighting';
 import { MobileControls } from './MobileControls';
 import { PerformanceManager, type QualitySetting, type QualityTier } from './PerformanceManager';
@@ -63,9 +62,9 @@ export class CemeteryScene {
     const w = Math.max(container.clientWidth, 320);
     const h = Math.max(container.clientHeight, 320);
 
-    this.camera = new THREE.PerspectiveCamera(46, w / h, 0.2, 145);
+    this.camera = new THREE.PerspectiveCamera(46, w / h, 0.2, 155);
     this.renderer = new THREE.WebGLRenderer({
-      antialias: false,
+      antialias: true,
       powerPreference: 'high-performance',
     });
     this.renderer.domElement.id = 'scene';
@@ -87,36 +86,19 @@ export class CemeteryScene {
     this.atmosphere = new Atmosphere(this.scene, this.assets, tier);
     this.lighting = new Lighting(this.scene, tier);
 
-    // Determine frontier grave (newest slot)
     const sorted = [...initialGraves].sort((a, b) => b.slot_index - a.slot_index);
     const heroGrave = sorted[0] || null;
     const leftGrave = sorted[1] || null;
     const rightGrave = sorted[2] || null;
-    const maxZ = heroGrave ? heroGrave.pos_z : 1.5;
+    const maxZ = heroGrave ? heroGrave.pos_z : 1.65;
 
     this.env = new Environment(this.scene, this.assets, tier, maxZ);
 
-    // Place 14+ lanterns matching reference (bases of near stones, gate pillars, along path, fence & chapel)
-    const lanternPositions: Array<{ x: number; y: number; z: number; hasLight: boolean; scale?: number }> = [
-      { x: (heroGrave?.pos_x ?? -0.62) - 0.85, y: 0, z: (heroGrave?.pos_z ?? 1.35) + 0.35, hasLight: true, scale: 0.75 },
-      { x: (leftGrave?.pos_x ?? -3.45) - 0.82, y: 0, z: (leftGrave?.pos_z ?? -1.2) + 0.35, hasLight: true, scale: 0.72 },
-      { x: (rightGrave?.pos_x ?? 2.35) + 0.82, y: 0, z: (rightGrave?.pos_z ?? -1.4) + 0.35, hasLight: true, scale: 0.72 },
-      { x: (heroGrave?.pos_x ?? -0.62) + 2.4, y: 0, z: (heroGrave?.pos_z ?? 1.35) + 0.75, hasLight: true, scale: 0.65 }, // Sign lantern
-      { x: -3.45, y: 5.32, z: -34, hasLight: true, scale: 1.2 }, // Left gate pillar
-      { x: 3.45, y: 5.32, z: -34, hasLight: false, scale: 1.2 }, // Right gate pillar
-      { x: getPathCenterX(-6) + 1.8, y: 0, z: -6, hasLight: false, scale: 0.9 },
-      { x: getPathCenterX(-12) - 1.8, y: 0, z: -12, hasLight: false, scale: 0.9 },
-      { x: getPathCenterX(-18) + 1.8, y: 0, z: -18, hasLight: false, scale: 0.9 },
-      { x: getPathCenterX(-24) - 1.8, y: 0, z: -24, hasLight: false, scale: 0.9 },
-      { x: getPathCenterX(-30) + 1.8, y: 0, z: -30, hasLight: false, scale: 0.9 },
-      { x: 8.6, y: 0, z: -23.5, hasLight: false, scale: 0.95 }, // Chapel front
-      { x: -8.8, y: 0, z: -32.2, hasLight: false, scale: 0.85 }, // Fence left
-      { x: 8.8, y: 0, z: -32.2, hasLight: false, scale: 0.85 }, // Fence right
-    ];
+    const lanternPositions = computeLanternPositions(heroGrave, leftGrave, rightGrave);
     this.lanterns = new Lanterns(this.scene, this.assets, tier, lanternPositions);
 
     this.signBoard = new SignBoard(this.scene, this.assets);
-    this.signBoard.setPositionRelativeToHero(heroGrave?.pos_x ?? -0.62, heroGrave?.pos_z ?? 1.35);
+    this.signBoard.setPositionRelativeToHero(heroGrave?.pos_x ?? -0.75, heroGrave?.pos_z ?? 1.65);
 
     this.graveMgr = new GraveManager(this.scene, this.renderer, this.assets);
     this.graveMgr.setGraves(initialGraves);
@@ -157,7 +139,6 @@ export class CemeteryScene {
     this.atmosphere.setTier(tier, reducedMotion);
     this.graveMgr.updateNearbyPlaques(this.camera.position);
 
-    // Start short cinematic dolly unless skipping directly to a permalink grave
     this.cameraCtrl.playIntroDolly(reducedMotion, () => {
       this.callbacks.onReady?.();
     });
@@ -170,7 +151,7 @@ export class CemeteryScene {
     const hero = sorted[0] || null;
     this.graveMgr.setGraves(graves);
     this.cameraCtrl.configureHomeRelativeToHero(hero);
-    this.signBoard.setPositionRelativeToHero(hero?.pos_x ?? -0.62, hero?.pos_z ?? 1.35);
+    this.signBoard.setPositionRelativeToHero(hero?.pos_x ?? -0.75, hero?.pos_z ?? 1.65);
     this.graveMgr.updateNearbyPlaques(this.camera.position);
   }
 
@@ -226,7 +207,7 @@ export class CemeteryScene {
       this.env.update(elapsedSec, reduced);
 
       plaqueTimer += dt;
-      if (plaqueTimer >= 0.18) {
+      if (plaqueTimer >= 0.25) {
         plaqueTimer = 0;
         this.graveMgr.updateNearbyPlaques(this.camera.position);
       }

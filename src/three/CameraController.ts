@@ -1,15 +1,16 @@
 import gsap from 'gsap';
 import * as THREE from 'three';
 import type { Grave } from '../types/grave';
+import { getTerrainHeight } from './terrain';
 
 export class CameraController {
   public yaw = 0;
-  public pitch = -0.07;
+  public pitch = -0.055;
   private isFlying = false;
   private activeTween: gsap.core.Tween | null = null;
-  private homePos = new THREE.Vector3(0.45, 1.5, 4.65);
+  private homePos = new THREE.Vector3(0.35, 1.56, 5.25);
   private homeYaw = 0.04;
-  private homePitch = -0.07;
+  private homePitch = -0.055;
   private baseDesktopFov = 46;
 
   constructor(public readonly camera: THREE.PerspectiveCamera) {
@@ -20,7 +21,6 @@ export class CameraController {
   public updateResponsiveFov(): void {
     const aspect = this.camera.aspect || window.innerWidth / Math.max(1, window.innerHeight);
     if (aspect < 1) {
-      // Portrait mobile: keep horizontal FOV >= 70° so hero stone + gate stay in frame
       const minHorizRad = THREE.MathUtils.degToRad(72);
       const vFovRad = 2 * Math.atan(Math.tan(minHorizRad / 2) / aspect);
       this.camera.fov = Math.min(82, Math.max(54, THREE.MathUtils.radToDeg(vFovRad)));
@@ -30,18 +30,19 @@ export class CameraController {
     this.camera.updateProjectionMatrix();
   }
 
-  /**
-   * Computes initial camera vantage relative to the newest (frontier) grave
-   * so the newest gravestone sits at the hero position (x ≈ 42%, base y ≈ 82%).
-   */
   public configureHomeRelativeToHero(heroGrave: Grave | null): void {
-    const hx = heroGrave ? heroGrave.pos_x : -0.62;
-    const hz = heroGrave ? heroGrave.pos_z : 1.35;
+    const hx = heroGrave ? heroGrave.pos_x : -0.75;
+    const hz = heroGrave ? heroGrave.pos_z : 1.65;
+    const hy = heroGrave ? heroGrave.pos_y : getTerrainHeight(hx, hz);
     const isPortrait = (window.innerWidth / Math.max(1, window.innerHeight)) < 1;
 
-    this.homePos.set(hx + (isPortrait ? 0.55 : 0.85), isPortrait ? 1.65 : 1.52, hz + (isPortrait ? 4.15 : 3.55));
+    this.homePos.set(
+      hx + (isPortrait ? 0.55 : 0.95),
+      hy + (isPortrait ? 1.68 : 1.54),
+      hz + (isPortrait ? 4.25 : 3.65),
+    );
     this.homeYaw = isPortrait ? 0.04 : 0.05;
-    this.homePitch = -0.065;
+    this.homePitch = -0.055;
   }
 
   public playIntroDolly(reducedMotion: boolean, onDone?: () => void): void {
@@ -57,8 +58,7 @@ export class CameraController {
       return;
     }
 
-    // Start 2.4m back and glide smoothly in over 2.8s
-    this.camera.position.set(this.homePos.x + 0.15, this.homePos.y + 0.25, this.homePos.z + 2.4);
+    this.camera.position.set(this.homePos.x + 0.15, this.homePos.y + 0.25, this.homePos.z + 2.3);
     this.yaw = this.homeYaw;
     this.pitch = this.homePitch - 0.02;
     this.applyRotation();
@@ -76,7 +76,7 @@ export class CameraController {
       y: this.homePos.y,
       z: this.homePos.z,
       pitch: this.homePitch,
-      duration: 2.8,
+      duration: 2.6,
       ease: 'power2.out',
       onUpdate: () => {
         this.camera.position.set(state.x, state.y, state.z);
@@ -123,18 +123,19 @@ export class CameraController {
   }
 
   public clampPosition(): void {
-    this.camera.position.y = Math.max(1.1, Math.min(9.5, this.camera.position.y));
     this.camera.position.x = Math.max(-28, Math.min(28, this.camera.position.x));
-    this.camera.position.z = Math.max(-48, Math.min(this.homePos.z + 14, this.camera.position.z));
+    this.camera.position.z = Math.max(-56, Math.min(this.homePos.z + 14, this.camera.position.z));
 
-    // Guard chapel walls
+    const groundY = getTerrainHeight(this.camera.position.x, this.camera.position.z);
+    this.camera.position.y = Math.max(groundY + 1.25, Math.min(groundY + 8.5, this.camera.position.y));
+
     if (
-      this.camera.position.x > 8.2 &&
-      this.camera.position.x < 17 &&
-      this.camera.position.z > -30 &&
-      this.camera.position.z < -19
+      this.camera.position.x > 11.2 &&
+      this.camera.position.x < 20 &&
+      this.camera.position.z > -37 &&
+      this.camera.position.z < -26.5
     ) {
-      this.camera.position.x = 8.2;
+      this.camera.position.x = 11.2;
     }
   }
 
@@ -143,10 +144,10 @@ export class CameraController {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const sin = Math.sin(grave.rotation_y);
     const cos = Math.cos(grave.rotation_y);
+    const gy = grave.pos_y || getTerrainHeight(grave.pos_x, grave.pos_z);
 
-    // 1.8m in front of gravestone, eye height 1.1m, FOV narrowed to 38°
-    const targetPos = new THREE.Vector3(grave.pos_x + sin * 2.05, 1.12, grave.pos_z + cos * 2.05);
-    const lookAt = new THREE.Vector3(grave.pos_x, 0.85, grave.pos_z);
+    const targetPos = new THREE.Vector3(grave.pos_x + sin * 2.15, gy + 1.12, grave.pos_z + cos * 2.15);
+    const lookAt = new THREE.Vector3(grave.pos_x, gy + 0.85, grave.pos_z);
     const temp = this.camera.clone();
     temp.position.copy(targetPos);
     temp.lookAt(lookAt);
@@ -184,7 +185,7 @@ export class CameraController {
       yaw: this.yaw + deltaYaw,
       pitch: targetEuler.x,
       fov: 38,
-      duration: 1.25,
+      duration: 1.2,
       ease: 'power2.inOut',
       onUpdate: () => {
         this.camera.position.set(state.x, state.y, state.z);

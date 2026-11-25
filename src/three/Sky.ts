@@ -8,14 +8,14 @@ export class Sky {
   constructor(scene: THREE.Scene, assets: AssetLoader) {
     scene.add(this.group);
 
-    // 1. Night Sky Gradient Dome (#0B1026 -> #1B2650 -> #2A3A66)
+    // Brighter luminous moonlit indigo sky (#0D1530 -> #1F2E5C -> #384E82)
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
       uniforms: {
-        zenith: { value: new THREE.Color('#0B1026') },
-        mid: { value: new THREE.Color('#1B2650') },
-        horizon: { value: new THREE.Color('#2A3A66') },
+        zenith: { value: new THREE.Color('#0D1530') },
+        mid: { value: new THREE.Color('#1F2E5C') },
+        horizon: { value: new THREE.Color('#384E82') },
       },
       vertexShader: `
         varying vec3 vWorldPos;
@@ -38,15 +38,15 @@ export class Sky {
         }
       `,
     });
-    this.group.add(new THREE.Mesh(new THREE.SphereGeometry(140, 32, 20), skyMat));
+    this.group.add(new THREE.Mesh(new THREE.SphereGeometry(145, 24, 16), skyMat));
 
-    // 2. Sparse Stars
-    const starCount = 320;
+    // Subtle stars
+    const starCount = 240;
     const starPos = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount; i += 1) {
       const theta = (i * 2.39996) % (Math.PI * 2);
-      const phi = Math.acos(0.18 + ((i * 0.61803) % 0.81));
-      const r = 115;
+      const phi = Math.acos(0.2 + ((i * 0.61803) % 0.78));
+      const r = 120;
       starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       starPos[i * 3 + 1] = r * Math.cos(phi);
       starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
@@ -57,71 +57,70 @@ export class Sky {
       new THREE.Points(
         starGeo,
         new THREE.PointsMaterial({
-          color: 0xdce6ff,
-          size: 0.45,
+          color: 0xe6efff,
+          size: 0.42,
           transparent: true,
-          opacity: 0.55,
+          opacity: 0.52,
           fog: false,
         }),
       ),
     );
 
-    // 3. Full Moon positioned back-right matching reference (x ≈ 62%, y ≈ 12%)
-    const moonPos = new THREE.Vector3(14.5, 25.5, -78);
+    // Full Moon back-right matching reference (x ≈ 62%, y ≈ 12%)
+    const moonPos = new THREE.Vector3(16.5, 28.5, -88);
     const moonMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(4.4, 32, 32),
+      new THREE.SphereGeometry(5.0, 24, 24),
       new THREE.MeshBasicMaterial({
         map: assets.moonMap,
-        color: 0xeaf0ff,
+        color: 0xf4f7ff,
         fog: false,
       }),
     );
     moonMesh.position.copy(moonPos);
     this.group.add(moonMesh);
 
-    // 2-Layer Moon Halo (#AFC4FF)
     const innerHalo = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: assets.mistMap,
-        color: 0xafc4ff,
+        color: 0xc2d5ff,
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.65,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         fog: false,
       }),
     );
     innerHalo.position.copy(moonPos);
-    innerHalo.scale.set(17, 17, 1);
+    innerHalo.scale.set(20, 20, 1);
     this.group.add(innerHalo);
 
     const outerHalo = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: assets.mistMap,
-        color: 0x8fa6d9,
+        color: 0x99b3eb,
         transparent: true,
-        opacity: 0.28,
+        opacity: 0.36,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         fog: false,
       }),
     );
     outerHalo.position.copy(moonPos);
-    outerHalo.scale.set(36, 36, 1);
+    outerHalo.scale.set(42, 42, 1);
     this.group.add(outerHalo);
 
-    // 4. Drifting Cloud Bands with Silver Rim (#B9C8F0) near moon lower edge
+    // Illuminated drifting cloud wisps
     const cloudConfigs: Array<[number, number, number, number, number, number]> = [
-      [10, 21.8, -72, 46, 12, 0.34],
-      [-14, 24.5, -74, 52, 14, 0.24],
-      [22, 18.2, -68, 40, 10, 0.26],
+      [12, 23.5, -80, 52, 14, 0.46],
+      [-16, 26.5, -82, 58, 16, 0.34],
+      [26, 19.5, -76, 46, 12, 0.36],
     ];
     for (const [cx, cy, cz, w, h, opacity] of cloudConfigs) {
       const cloud = new THREE.Mesh(
         new THREE.PlaneGeometry(w, h),
         new THREE.MeshBasicMaterial({
           map: assets.mistMap,
-          color: 0xb9c8f0,
+          color: 0xc5d4f7,
           transparent: true,
           opacity,
           depthWrite: false,
@@ -129,7 +128,7 @@ export class Sky {
         }),
       );
       cloud.position.set(cx, cy, cz);
-      cloud.userData = { baseX: cx, speed: 0.16 + Math.abs(cx) * 0.005 };
+      cloud.userData = { baseX: cx };
       this.group.add(cloud);
       this.clouds.push(cloud);
     }
@@ -139,8 +138,7 @@ export class Sky {
     if (reducedMotion) return;
     this.clouds.forEach((cloud, idx) => {
       const baseX = Number(cloud.userData.baseX || 0);
-      const offset = Math.sin(elapsedSec * 0.025 + idx * 1.9) * 5.5;
-      cloud.position.x = baseX + offset;
+      cloud.position.x = baseX + Math.sin(elapsedSec * 0.025 + idx * 1.9) * 5.5;
     });
   }
 }

@@ -7,27 +7,27 @@ export class Lighting {
   public readonly heroFillLight: THREE.DirectionalLight;
 
   constructor(scene: THREE.Scene, tier: QualityTier) {
-    // Moon DirectionalLight aligned with moon back-right-up (14.5, 25.5, -78)
-    this.moonLight = new THREE.DirectionalLight('#9DB4FF', 1.28);
-    this.moonLight.position.set(16, 26, -48);
+    // Brighter moonlit rim & shadow directional light (1024 shadow map for smooth FPS)
+    this.moonLight = new THREE.DirectionalLight('#B8CDFF', 1.68);
+    this.moonLight.position.set(16, 28, -54);
     this.moonLight.castShadow = tier !== 'low';
-    this.moonLight.shadow.mapSize.set(2048, 2048);
-    this.moonLight.shadow.camera.near = 2;
-    this.moonLight.shadow.camera.far = 96;
-    this.moonLight.shadow.camera.left = -22;
-    this.moonLight.shadow.camera.right = 22;
-    this.moonLight.shadow.camera.top = 22;
-    this.moonLight.shadow.camera.bottom = -22;
-    this.moonLight.shadow.bias = -0.0005;
+    this.moonLight.shadow.mapSize.set(1024, 1024);
+    this.moonLight.shadow.camera.near = 4;
+    this.moonLight.shadow.camera.far = 92;
+    this.moonLight.shadow.camera.left = -18;
+    this.moonLight.shadow.camera.right = 18;
+    this.moonLight.shadow.camera.top = 18;
+    this.moonLight.shadow.camera.bottom = -18;
+    this.moonLight.shadow.bias = -0.0006;
     scene.add(this.moonLight);
 
-    // Sky/ground HemisphereLight keeping shadows cold indigo-green & readable
-    this.hemiLight = new THREE.HemisphereLight('#465A94', '#1E2F22', 0.85);
+    // Stronger hemisphere ambient so mossy hills, grass, and stones read brightly like reference
+    this.hemiLight = new THREE.HemisphereLight('#5870AD', '#293F2E', 1.15);
     scene.add(this.hemiLight);
 
-    // Soft cool moon-mist bounce from camera-front so gravestone faces remain >= 70/255 readable
-    this.heroFillLight = new THREE.DirectionalLight('#849CD6', 0.92);
-    this.heroFillLight.position.set(-2, 4.8, 14);
+    // Soft cool front-fill illuminating foreground stone faces
+    this.heroFillLight = new THREE.DirectionalLight('#96AEE6', 1.25);
+    this.heroFillLight.position.set(-2, 5.2, 16);
     scene.add(this.heroFillLight);
   }
 

@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { Grave } from '../types/grave';
 import type { AssetLoader } from './AssetLoader';
 import type { QualityTier } from './PerformanceManager';
+import { getPathCenterX, getTerrainHeight, PATH_HALF_WIDTH } from './terrain';
 
 interface LanternUnit {
   light: THREE.PointLight | null;
@@ -11,15 +13,70 @@ interface LanternUnit {
   baseIntensity: number;
 }
 
+export interface LanternSpec {
+  x: number;
+  y: number;
+  z: number;
+  hasLight: boolean;
+  scale?: number;
+}
+
+/**
+ * Generates lantern positions strictly OFF the cobblestone road (|x - pathCenter| >= PATH_HALF_WIDTH + 0.65)
+ * and resting accurately on the rolling terrain height.
+ */
+export function computeLanternPositions(
+  heroGrave: Grave | null,
+  leftGrave: Grave | null,
+  rightGrave: Grave | null,
+): LanternSpec[] {
+  const hx = heroGrave?.pos_x ?? -0.75;
+  const hz = heroGrave?.pos_z ?? 1.65;
+  const lx = leftGrave?.pos_x ?? -4.65;
+  const lz = leftGrave?.pos_z ?? -1.9;
+  const rx = rightGrave?.pos_x ?? 4.35;
+  const rz = rightGrave?.pos_z ?? -2.2;
+
+  const curbOffset = PATH_HALF_WIDTH + 0.72; // 2.37m from path center -> always on grass shoulder
+  const gateZ = -46;
+  const gateY = getTerrainHeight(0, gateZ);
+
+  const groundLantern = (x: number, z: number, hasLight: boolean, scale = 0.78): LanternSpec => ({
+    x,
+    y: getTerrainHeight(x, z),
+    z,
+    hasLight,
+    scale,
+  });
+
+  const signLanternZ = hz + 0.72;
+  const signLanternX = getPathCenterX(signLanternZ) + curbOffset + 0.35;
+
+  return [
+    groundLantern(hx - 0.85, hz + 0.32, true, 0.76),
+    groundLantern(lx - 0.82, lz + 0.35, true, 0.72),
+    groundLantern(rx + 0.82, rz + 0.35, true, 0.72),
+    groundLantern(signLanternX, signLanternZ, true, 0.65), // Beside Add Your Regret sign (off road)
+    { x: -3.6, y: gateY + 5.58, z: gateZ, hasLight: true, scale: 1.2 }, // Left gate pillar
+    { x: 3.6, y: gateY + 5.58, z: gateZ, hasLight: false, scale: 1.2 }, // Right gate pillar
+    groundLantern(getPathCenterX(-8) + curbOffset, -8, false, 0.82),
+    groundLantern(getPathCenterX(-15) - curbOffset, -15, false, 0.82),
+    groundLantern(getPathCenterX(-22) + curbOffset, -22, false, 0.82),
+    groundLantern(getPathCenterX(-29) - curbOffset, -29, false, 0.82),
+    groundLantern(getPathCenterX(-36) + curbOffset, -36, false, 0.82),
+    groundLantern(getPathCenterX(-42) - curbOffset, -42, false, 0.82),
+    groundLantern(11.4, -30.5, false, 0.9), // Pavilion front
+    groundLantern(-9.5, -44.2, false, 0.82), // Fence left
+    groundLantern(9.5, -44.2, false, 0.82), // Fence right
+  ];
+}
+
 function buildLanternFrameGeometry(): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
-
-  // Tapered stepped base
   const base = new THREE.CylinderGeometry(0.14, 0.19, 0.14, 6);
   base.translate(0, 0.07, 0);
   parts.push(base);
 
-  // 4 corner wrought-iron struts
   for (let i = 0; i < 4; i += 1) {
     const angle = (i * Math.PI) / 2 + Math.PI / 4;
     const strut = new THREE.CylinderGeometry(0.015, 0.018, 0.34, 5);
@@ -27,12 +84,11 @@ function buildLanternFrameGeometry(): THREE.BufferGeometry {
     parts.push(strut);
   }
 
-  // Tiered pagoda iron cap & ring finial
   const roof = new THREE.ConeGeometry(0.22, 0.16, 6);
   roof.translate(0, 0.54, 0);
   parts.push(roof);
 
-  const ring = new THREE.TorusGeometry(0.04, 0.01, 6, 12);
+  const ring = new THREE.TorusGeometry(0.04, 0.01, 6, 10);
   ring.translate(0, 0.65, 0);
   parts.push(ring);
 
@@ -49,7 +105,7 @@ export class Lanterns {
     scene: THREE.Scene,
     assets: AssetLoader,
     tier: QualityTier,
-    positions: Array<{ x: number; y: number; z: number; hasLight: boolean; scale?: number }>,
+    positions: LanternSpec[],
   ) {
     scene.add(this.group);
 
@@ -60,7 +116,7 @@ export class Lanterns {
       metalness: 0.82,
     });
     const glassGeo = new THREE.CylinderGeometry(0.11, 0.095, 0.28, 6);
-    const decalGeo = new THREE.PlaneGeometry(2.6, 2.6);
+    const decalGeo = new THREE.PlaneGeometry(2.4, 2.4);
 
     const frames = new THREE.InstancedMesh(frameGeo, frameMat, positions.length);
     const dummy = new THREE.Object3D();
@@ -73,32 +129,27 @@ export class Lanterns {
       dummy.updateMatrix();
       frames.setMatrixAt(idx, dummy.matrix);
 
-      // Warm glass & candle core
-      const flameMat = new THREE.MeshBasicMaterial({
-        color: 0xffd9a0,
-      });
+      const flameMat = new THREE.MeshBasicMaterial({ color: 0xffdfa8 });
       const glass = new THREE.Mesh(glassGeo, flameMat);
       glass.position.set(pos.x, pos.y + 0.3 * s, pos.z);
       glass.scale.set(s, s, s);
       this.group.add(glass);
 
-      // Additive radial glow sprite (~1.2m radius)
       const sprite = new THREE.Sprite(
         new THREE.SpriteMaterial({
           map: assets.glowMap,
           color: 0xffb45a,
           transparent: true,
-          opacity: 0.52,
+          opacity: 0.5,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         }),
       );
       sprite.position.set(pos.x, pos.y + 0.32 * s, pos.z);
-      sprite.scale.set(1.75 * s, 1.75 * s, 1);
+      sprite.scale.set(1.7 * s, 1.7 * s, 1);
       this.group.add(sprite);
 
-      // Subtle warm light decal pool on ground beneath lantern
-      if (pos.y < 1.2) {
+      if (pos.y < 1.6) {
         const decal = new THREE.Mesh(
           decalGeo,
           new THREE.MeshBasicMaterial({
@@ -111,14 +162,13 @@ export class Lanterns {
           }),
         );
         decal.rotation.x = -Math.PI / 2;
-        decal.position.set(pos.x, 0.04, pos.z);
+        decal.position.set(pos.x, pos.y + 0.04, pos.z);
         this.group.add(decal);
       }
 
-      // Real PointLight budget: max 4-6 nearest lanterns
       let light: THREE.PointLight | null = null;
       if (pos.hasLight && tier !== 'low') {
-        light = new THREE.PointLight('#FFB45A', 1.45, 6.8, 2);
+        light = new THREE.PointLight('#FFB45A', 1.55, 7.2, 2);
         light.position.set(pos.x, pos.y + 0.38 * s, pos.z);
         this.group.add(light);
       }
@@ -128,7 +178,7 @@ export class Lanterns {
         sprite,
         flameMat,
         phase: idx * 1.73,
-        baseIntensity: 1.45,
+        baseIntensity: 1.55,
       });
     });
 
@@ -144,7 +194,7 @@ export class Lanterns {
       if (u.light) {
         u.light.intensity = u.baseIntensity * flicker;
       }
-      u.sprite.material.opacity = 0.78 * flicker;
+      u.sprite.material.opacity = 0.5 * flicker;
     }
   }
 }

@@ -56,7 +56,7 @@ export function CemeteryPage({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<CemeteryScene | null>(null);
   const joyOriginRef = useRef<{ x: number; y: number } | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Redirect cleanly to 2D List View if WebGL is unsupported
   useEffect(() => {
@@ -196,45 +196,29 @@ export function CemeteryPage({
     });
   }, [latestBuriedGrave, onClearLatestBuried]);
 
-  // Optional gentle night wind Web Audio (strictly OFF by default)
+  // Real night forest ambient WAV playback (strictly OFF by default)
   useEffect(() => {
     if (!soundEnabled) {
-      audioCtxRef.current?.close().catch(() => {});
-      audioCtxRef.current = null;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
       return;
     }
 
-    try {
-      const ctx = new AudioContext();
-      const bufferSize = ctx.sampleRate * 2;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i += 1) {
-        data[i] = (Math.random() * 2 - 1) * 0.25;
-      }
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      noise.loop = true;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 340;
-
-      const gain = ctx.createGain();
-      gain.gain.value = 0.04;
-
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      noise.start();
-      audioCtxRef.current = ctx;
-    } catch {
-      setSoundEnabled(false);
+    if (!audioRef.current) {
+      const audio = new Audio('/audio/night-ambient.wav');
+      audio.loop = true;
+      audio.volume = 0.5;
+      audioRef.current = audio;
     }
 
+    audioRef.current.play().catch(() => {
+      setSoundEnabled(false);
+    });
+
     return () => {
-      audioCtxRef.current?.close().catch(() => {});
-      audioCtxRef.current = null;
+      audioRef.current?.pause();
     };
   }, [soundEnabled]);
 
