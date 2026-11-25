@@ -433,14 +433,15 @@ export class Environment {
   }
 
   private buildGrassAndFlowers(scene: THREE.Scene, tier: QualityTier): void {
-    // Organic clumped wild grass ("ilalang") with randomized height, bend, spacing & tint
+    // Organic clumped wild grass ("ilalang") with abundant tall & medium blades
     const bladeShape = new THREE.Shape();
-    bladeShape.moveTo(-0.024, 0);
-    bladeShape.lineTo(0.024, 0);
-    bladeShape.lineTo(0.008, 0.18);
-    bladeShape.lineTo(0.0, 0.38);
+    bladeShape.moveTo(-0.026, 0);
+    bladeShape.lineTo(0.026, 0);
+    bladeShape.lineTo(0.015, 0.16);
+    bladeShape.lineTo(0.007, 0.31);
+    bladeShape.lineTo(0.0, 0.44);
     bladeShape.closePath();
-    const bladeGeo = new THREE.ShapeGeometry(bladeShape, 1);
+    const bladeGeo = new THREE.ShapeGeometry(bladeShape, 2);
 
     const grassMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -452,16 +453,20 @@ export class Environment {
       shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
-         float gust = sin(uTime * 1.45 + instanceMatrix[3][0] * 0.55 + instanceMatrix[3][2] * 0.45)
-                    + 0.45 * cos(uTime * 2.3 + instanceMatrix[3][0] * 1.2);
-         float hFactor = clamp(position.y / 0.38, 0.0, 1.0);
-         transformed.x += gust * 0.055 * hFactor * hFactor;
-         transformed.z += cos(uTime * 1.1 + instanceMatrix[3][2] * 0.6) * 0.025 * hFactor;`,
+         float wx = instanceMatrix[3][0];
+         float wz = instanceMatrix[3][2];
+         float wave = sin(uTime * 1.7 - wx * 0.38 + wz * 0.28) * 0.72
+                    + cos(uTime * 2.65 - wx * 0.85 + wz * 0.6) * 0.38
+                    + sin(uTime * 0.65 - wx * 0.14) * 0.45;
+         float hFactor = clamp(position.y / 0.44, 0.0, 1.0);
+         float bend = hFactor * hFactor;
+         transformed.x += (0.028 + wave * 0.072) * bend;
+         transformed.z += cos(uTime * 1.25 + wz * 0.55) * 0.03 * bend;`,
       );
     };
     this.grassMaterial = grassMat;
 
-    const grassCount = tier === 'high' ? 850 : tier === 'medium' ? 500 : 240;
+    const grassCount = tier === 'high' ? 4800 : tier === 'medium' ? 2600 : 1000;
     const grassMesh = new THREE.InstancedMesh(bladeGeo, grassMat, grassCount);
     const dummy = new THREE.Object3D();
     const tint = new THREE.Color();
@@ -477,40 +482,47 @@ export class Environment {
 
     let placed = 0;
     let guard = 0;
-    while (placed < grassCount && guard < 1200) {
+    while (placed < grassCount && guard < 5800) {
       guard += 1;
-      // Pick a random tuft/clump center across foreground & mid-ground hills
-      const cx = (rand() - 0.5) * 24;
-      const cz = 6.0 - rand() * 34;
+      // Pick a random tuft/clump center biased toward visible foreground & mid-ground hills
+      const cx = (rand() - 0.5) * 38;
+      const cz = 8.5 - Math.pow(rand(), 1.25) * 48;
       const distFromPath = Math.abs(cx - getPathCenterX(cz));
-      if (distFromPath < PATH_HALF_WIDTH + 0.18) continue;
+      if (distFromPath < PATH_HALF_WIDTH + 0.12) continue;
 
-      const bladesInTuft = 3 + Math.floor(rand() * 5); // 3-7 blades per natural clump
-      const clumpHeightBase = 0.45 + rand() * 0.85;
+      // Avoid tall blades right in front of the hero grave inscription (-0.75, 1.65)
+      const nearHeroFront = Math.abs(cx + 0.75) < 1.2 && cz > 1.3 && cz < 3.0;
+
+      const bladesInTuft = 6 + Math.floor(rand() * 8); // 6-13 blades per natural clump
+      const isTallClump = !nearHeroFront && rand() > 0.52;
+      const clumpHeightBase = isTallClump
+        ? 1.6 + rand() * 1.55 // Tall ilalang (~0.7m to ~1.4m+)
+        : 0.58 + rand() * 0.95; // Medium wild grass
 
       for (let b = 0; b < bladesInTuft && placed < grassCount; b += 1) {
         const angle = rand() * Math.PI * 2;
-        const radius = rand() * 0.38;
+        const radius = rand() * (isTallClump ? 0.52 : 0.4);
         const gx = cx + Math.cos(angle) * radius;
         const gz = cz + Math.sin(angle) * radius;
-        if (Math.abs(gx - getPathCenterX(gz)) < PATH_HALF_WIDTH + 0.12) continue;
+        if (Math.abs(gx - getPathCenterX(gz)) < PATH_HALF_WIDTH + 0.1) continue;
 
-        const hScale = clumpHeightBase * (0.65 + rand() * 0.75); // 0.3 .. 1.65 natural variation
-        const wScale = 0.65 + rand() * 0.7;
+        const hScale = clumpHeightBase * (0.68 + rand() * 0.68);
+        const wScale = (isTallClump ? 0.95 : 0.7) + rand() * 0.75;
 
         dummy.position.set(gx, getTerrainHeight(gx, gz) - 0.03, gz);
         dummy.rotation.set(
-          (rand() - 0.5) * 0.36, // organic forward/back lean
+          (rand() - 0.5) * 0.42, // organic forward/back lean
           rand() * Math.PI * 2,
-          (rand() - 0.5) * 0.28, // organic side bend
+          (rand() - 0.5) * 0.34, // organic side bend
         );
         dummy.scale.set(wScale, hScale, 1);
         dummy.updateMatrix();
         grassMesh.setMatrixAt(placed, dummy.matrix);
 
-        // Varied forest green -> moonlit sage tint per blade
-        const gVal = 0.26 + rand() * 0.16;
-        tint.setRGB(gVal * 0.58, gVal, gVal * 0.72);
+        // Varied forest green -> moonlit sage/olive tint per blade
+        const gVal = 0.24 + rand() * 0.2;
+        const oliveShift = rand() * 0.05;
+        tint.setRGB(gVal * 0.56 + oliveShift, gVal, gVal * 0.7);
         grassMesh.setColorAt(placed, tint);
         placed += 1;
       }
