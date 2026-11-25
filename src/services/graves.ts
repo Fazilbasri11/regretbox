@@ -192,7 +192,7 @@ export async function leaveRoseOnGrave(grave: Grave): Promise<{
   flower_count: number;
   flower_color: RoseColor;
 }> {
-  if (isSupabaseConfigured && !grave.is_demo) {
+  if (isSupabaseConfigured && !grave.id.startsWith('seed-')) {
     try {
       const res = await fetch('/api/graves/flower', {
         method: 'POST',
