@@ -215,6 +215,7 @@ export function CemeteryPage({
       return [latestBuriedGrave, ...prev];
     });
     setStats((prev) => ({ total: prev.total + 1, buried_today: prev.buried_today + 1 }));
+    setSelectedGrave(null);
     setIsBuryAnimating(true);
     engineRef.current.graveMgr.setSelectedGrave(latestBuriedGrave);
     engineRef.current.burialAnim.play(latestBuriedGrave, () => {

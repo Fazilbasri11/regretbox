@@ -109,7 +109,7 @@ export class CemeteryScene {
 
     this.postFx = new PostFX(this.renderer, this.scene, this.camera, tier);
     this.searchNav = new SearchNavigator(this.cameraCtrl, this.graveMgr);
-    this.burialAnim = new BurialAnimation(this.scene, this.cameraCtrl, this.postFx);
+    this.burialAnim = new BurialAnimation(this.scene, this.cameraCtrl, this.postFx, this.graveMgr);
 
     this.desktopCtrl = new DesktopControls(
       this.renderer.domElement,

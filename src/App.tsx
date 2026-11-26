@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import type { Grave } from './types/grave';
 import { BurialModal } from './components/BurialForm/BurialModal';
@@ -31,15 +31,18 @@ function AppShell() {
     navigate('/');
   };
 
+  const clearLatestBuried = useCallback(() => setLatestBuriedGrave(null), []);
+  const clearSearchedGrave = useCallback(() => setSearchedGrave(null), []);
+
   const cemeteryElement = (
     <CemeteryPage
       onOpenBury={() => setBuryOpen(true)}
       onOpenSearch={() => setSearchOpen(true)}
       onOpenAbout={() => setAboutOpen(true)}
       latestBuriedGrave={latestBuriedGrave}
-      onClearLatestBuried={() => setLatestBuriedGrave(null)}
+      onClearLatestBuried={clearLatestBuried}
       searchedGrave={searchedGrave}
-      onClearSearchedGrave={() => setSearchedGrave(null)}
+      onClearSearchedGrave={clearSearchedGrave}
       statsRefreshKey={statsRefreshKey}
     />
   );

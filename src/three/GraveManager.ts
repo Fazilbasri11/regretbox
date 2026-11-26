@@ -83,6 +83,7 @@ export class GraveManager {
   private roseBloomMat: THREE.MeshStandardMaterial;
   private plaqueCache: InscriptionTextureCache;
   private selectedGraveId: string | null = null;
+  private animatingGraveId: string | null = null;
   private highlightRing: THREE.Mesh;
   private highlightLight: THREE.PointLight;
 
@@ -180,6 +181,12 @@ export class GraveManager {
     this.rebuildInstances();
   }
 
+  public setAnimatingGraveId(graveId: string | null): void {
+    if (this.animatingGraveId === graveId) return;
+    this.animatingGraveId = graveId;
+    this.rebuildInstances();
+  }
+
   private getGroundY(g: Grave): number {
     return typeof g.pos_y === 'number' && g.pos_y !== 0
       ? g.pos_y
@@ -208,18 +215,21 @@ export class GraveManager {
 
   private rebuildInstances(): void {
     this.clearInstances();
-    if (this.graves.length === 0) return;
+    const visibleGraves = this.animatingGraveId
+      ? this.graves.filter((g) => g.id !== this.animatingGraveId)
+      : this.graves;
+    if (visibleGraves.length === 0) return;
 
     const dummy = new THREE.Object3D();
     const tintColor = new THREE.Color();
 
-    const plinths = new THREE.InstancedMesh(this.geos.plinth, this.plinthMat, this.graves.length);
-    const mounds = new THREE.InstancedMesh(this.geos.mound, this.moundMat, this.graves.length);
+    const plinths = new THREE.InstancedMesh(this.geos.plinth, this.plinthMat, visibleGraves.length);
+    const mounds = new THREE.InstancedMesh(this.geos.mound, this.moundMat, visibleGraves.length);
     plinths.receiveShadow = true;
     plinths.castShadow = true;
     mounds.receiveShadow = true;
 
-    this.graves.forEach((g, idx) => {
+    visibleGraves.forEach((g, idx) => {
       const gy = this.getGroundY(g);
       const scaleVar = g.slot_index >= 38 ? 1.0 : 0.92 + ((g.grave_number * 13) % 16) * 0.01;
       const tiltZ = g.slot_index >= 38 ? 0 : (((g.grave_number % 7) - 3) * 0.012);
@@ -249,10 +259,10 @@ export class GraveManager {
 
     const styles: GraveStyle[] = ['arched', 'slim', 'pillar', 'scroll'];
     for (const style of styles) {
-      const nearItems = this.graves.filter(
+      const nearItems = visibleGraves.filter(
         (g) => this.resolveStyle(g.grave_style) === style && g.slot_index >= 29,
       );
-      const farItems = this.graves.filter(
+      const farItems = visibleGraves.filter(
         (g) => this.resolveStyle(g.grave_style) === style && g.slot_index < 29,
       );
 
@@ -358,6 +368,7 @@ export class GraveManager {
 
   public updateNearbyPlaques(cameraPos: THREE.Vector3): void {
     const sorted = this.graves
+      .filter((g) => g.id !== this.animatingGraveId)
       .map((g) => {
         const dx = g.pos_x - cameraPos.x;
         const dz = g.pos_z - cameraPos.z;

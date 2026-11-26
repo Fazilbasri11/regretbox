@@ -146,8 +146,8 @@ export class CameraController {
     const cos = Math.cos(grave.rotation_y);
     const gy = grave.pos_y || getTerrainHeight(grave.pos_x, grave.pos_z);
 
-    const targetPos = new THREE.Vector3(grave.pos_x + sin * 2.15, gy + 1.12, grave.pos_z + cos * 2.15);
-    const lookAt = new THREE.Vector3(grave.pos_x, gy + 0.85, grave.pos_z);
+    const targetPos = new THREE.Vector3(grave.pos_x + sin * 2.55, gy + 1.18, grave.pos_z + cos * 2.55);
+    const lookAt = new THREE.Vector3(grave.pos_x, gy + 0.72, grave.pos_z);
     const temp = this.camera.clone();
     temp.position.copy(targetPos);
     temp.lookAt(lookAt);
@@ -157,7 +157,7 @@ export class CameraController {
       this.camera.position.copy(targetPos);
       this.yaw = targetEuler.y;
       this.pitch = targetEuler.x;
-      this.camera.fov = 38;
+      this.camera.fov = 41;
       this.camera.updateProjectionMatrix();
       this.applyRotation();
       onComplete?.();
@@ -184,7 +184,7 @@ export class CameraController {
       z: targetPos.z,
       yaw: this.yaw + deltaYaw,
       pitch: targetEuler.x,
-      fov: 38,
+      fov: 41,
       duration: 1.2,
       ease: 'power2.inOut',
       onUpdate: () => {
