@@ -156,7 +156,7 @@ export class Lanterns {
             map: assets.glowMap,
             color: 0xffa84c,
             transparent: true,
-            opacity: 0.16,
+            opacity: tier === 'low' ? 0.22 : 0.16,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           }),
@@ -167,7 +167,8 @@ export class Lanterns {
       }
 
       let light: THREE.PointLight | null = null;
-      if (pos.hasLight && tier !== 'low') {
+      const maxLights = tier === 'high' ? 5 : tier === 'medium' ? 2 : 0;
+      if (pos.hasLight && idx < maxLights) {
         light = new THREE.PointLight('#FFB45A', 1.55, 7.2, 2);
         light.position.set(pos.x, pos.y + 0.38 * s, pos.z);
         this.group.add(light);

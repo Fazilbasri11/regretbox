@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { Grave, GraveStyle } from '../types/grave';
 import type { AssetLoader } from './AssetLoader';
 import { InscriptionTextureCache } from './InscriptionTexture';
+import type { QualityTier } from './PerformanceManager';
 import { getTerrainHeight } from './terrain';
 import { createTombstoneGeometries, type TombstoneGeometries } from './Tombstone';
 
@@ -78,10 +79,11 @@ export class GraveManager {
   private roseGeos: { stemGeo: THREE.BufferGeometry; bloomGeo: THREE.BufferGeometry };
   private stoneMat: THREE.MeshStandardMaterial;
   private plinthMat: THREE.MeshStandardMaterial;
-  private moundMat: THREE.MeshStandardMaterial;
-  private roseStemMat: THREE.MeshStandardMaterial;
+  private moundMat: THREE.MeshLambertMaterial;
+  private roseStemMat: THREE.MeshLambertMaterial;
   private roseBloomMat: THREE.MeshStandardMaterial;
   private plaqueCache: InscriptionTextureCache;
+  private tier: QualityTier = 'high';
   private selectedGraveId: string | null = null;
   private animatingGraveId: string | null = null;
   private highlightRing: THREE.Mesh;
@@ -98,9 +100,8 @@ export class GraveManager {
     this.roseGeos = createRoseGeometries();
     this.plaqueCache = new InscriptionTextureCache(renderer);
 
-    this.roseStemMat = new THREE.MeshStandardMaterial({
+    this.roseStemMat = new THREE.MeshLambertMaterial({
       color: 0x2d4e31,
-      roughness: 0.78,
       side: THREE.DoubleSide,
     });
     this.roseBloomMat = new THREE.MeshStandardMaterial({
@@ -137,9 +138,8 @@ export class GraveManager {
       roughness: 0.9,
     });
 
-    this.moundMat = new THREE.MeshStandardMaterial({
+    this.moundMat = new THREE.MeshLambertMaterial({
       color: 0x1e241c,
-      roughness: 0.96,
     });
 
     this.highlightRing = new THREE.Mesh(
@@ -366,7 +366,13 @@ export class GraveManager {
     this.rebuildRoses();
   }
 
+  public setTier(tier: QualityTier): void {
+    this.tier = tier;
+  }
+
   public updateNearbyPlaques(cameraPos: THREE.Vector3): void {
+    const maxPlaques =
+      this.tier === 'low' ? 8 : this.tier === 'medium' ? 12 : this.plaquePool.length;
     const sorted = this.graves
       .filter((g) => g.id !== this.animatingGraveId)
       .map((g) => {
@@ -376,7 +382,7 @@ export class GraveManager {
       })
       .filter((entry) => entry.distSq <= 26 * 26 || entry.grave.id === this.selectedGraveId)
       .sort((a, b) => a.distSq - b.distSq)
-      .slice(0, this.plaquePool.length);
+      .slice(0, maxPlaques);
 
     this.plaquePool.forEach((slot, idx) => {
       const entry = sorted[idx];
@@ -388,7 +394,14 @@ export class GraveManager {
       const g = entry.grave;
       const isSelected = g.id === this.selectedGraveId;
       const isForeground = g.slot_index >= 38;
-      const resolution = isSelected || isForeground ? 1024 : 512;
+      const resolution =
+        this.tier === 'low'
+          ? isSelected || isForeground
+            ? 512
+            : 256
+          : isSelected || isForeground
+            ? 1024
+            : 512;
       const colorMap = this.plaqueCache.get(g, resolution);
 
       if (slot.mat.map !== colorMap) {

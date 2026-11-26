@@ -33,7 +33,7 @@ export class PostFX {
 
     if (tier === 'low') {
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      this.renderer.toneMappingExposure = 1.24;
+      this.renderer.toneMappingExposure = 1.28;
       return;
     }
 

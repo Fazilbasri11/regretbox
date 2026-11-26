@@ -63,9 +63,10 @@ export class CemeteryScene {
     const w = Math.max(container.clientWidth, 320);
     const h = Math.max(container.clientHeight, 320);
 
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || w < 768;
     this.camera = new THREE.PerspectiveCamera(46, w / h, 0.2, 360);
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: !isMobile && this.perf.activeTier !== 'low',
       powerPreference: 'high-performance',
     });
     this.renderer.domElement.id = 'scene';
@@ -102,6 +103,7 @@ export class CemeteryScene {
     this.signBoard.setPositionRelativeToHero(heroGrave?.pos_x ?? -0.75, heroGrave?.pos_z ?? 1.65);
 
     this.graveMgr = new GraveManager(this.scene, this.renderer, this.assets);
+    this.graveMgr.setTier(tier);
     this.graveMgr.setGraves(initialGraves);
 
     this.cameraCtrl = new CameraController(this.camera);
@@ -171,6 +173,7 @@ export class CemeteryScene {
     this.renderer.setPixelRatio(this.perf.getMaxPixelRatio());
     this.renderer.shadowMap.enabled = tier !== 'low';
     this.lighting.setTier(tier);
+    this.graveMgr.setTier(tier);
     this.atmosphere.setTier(tier, reduced);
     this.postFx.rebuild(tier);
   }

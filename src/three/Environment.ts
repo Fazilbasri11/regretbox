@@ -67,7 +67,7 @@ function buildBareTreeBranchGroup(material: THREE.Material): THREE.Group {
 }
 
 export class Environment {
-  public grassMaterial: THREE.MeshStandardMaterial | null = null;
+  public grassMaterial: THREE.MeshLambertMaterial | null = null;
   public doorHitMesh!: THREE.Mesh;
   private grassUniforms = { uTime: { value: 0 } };
   private fgTree: THREE.Group | null = null;
@@ -412,7 +412,7 @@ export class Environment {
     scene.add(fgTree);
     this.fgTree = fgTree;
 
-    const foliageMat = new THREE.MeshStandardMaterial({ color: 0x162230, roughness: 0.94 });
+    const foliageMat = new THREE.MeshLambertMaterial({ color: 0x162230 });
     foliageMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = this.grassUniforms.uTime;
       shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace(
@@ -472,11 +472,10 @@ export class Environment {
     bladeShape.lineTo(0.007, 0.31);
     bladeShape.lineTo(0.0, 0.44);
     bladeShape.closePath();
-    const bladeGeo = new THREE.ShapeGeometry(bladeShape, 2);
+    const bladeGeo = new THREE.ShapeGeometry(bladeShape, 1);
 
-    const grassMat = new THREE.MeshStandardMaterial({
+    const grassMat = new THREE.MeshLambertMaterial({
       color: 0xffffff,
-      roughness: 0.84,
       side: THREE.DoubleSide,
     });
     grassMat.onBeforeCompile = (shader) => {
@@ -497,7 +496,7 @@ export class Environment {
     };
     this.grassMaterial = grassMat;
 
-    const grassCount = tier === 'high' ? 4800 : tier === 'medium' ? 2600 : 1000;
+    const grassCount = tier === 'high' ? 3800 : tier === 'medium' ? 1800 : 950;
     const grassMesh = new THREE.InstancedMesh(bladeGeo, grassMat, grassCount);
     const dummy = new THREE.Object3D();
     const tint = new THREE.Color();
@@ -567,10 +566,10 @@ export class Environment {
     const floretGeo = new THREE.SphereGeometry(0.036, 5, 4);
     const leafClusterGeo = new THREE.SphereGeometry(0.14, 6, 4);
     leafClusterGeo.scale(1.4, 0.55, 1.3);
-    const foliageLeafMat = new THREE.MeshStandardMaterial({ color: 0x203827, roughness: 0.88 });
-    const violetMat = new THREE.MeshStandardMaterial({ color: '#7866C7', roughness: 0.75 });
-    const blueMat = new THREE.MeshStandardMaterial({ color: '#587BE0', roughness: 0.75 });
-    const whiteMat = new THREE.MeshStandardMaterial({ color: '#F6F3EB', roughness: 0.65 });
+    const foliageLeafMat = new THREE.MeshLambertMaterial({ color: 0x203827 });
+    const violetMat = new THREE.MeshLambertMaterial({ color: '#7866C7' });
+    const blueMat = new THREE.MeshLambertMaterial({ color: '#587BE0' });
+    const whiteMat = new THREE.MeshLambertMaterial({ color: '#F6F3EB' });
 
     const hydrangeaSpots: Array<[number, number]> = [
       [-2.75, 3.6], [-3.15, 3.0], [-2.35, 3.9], [-3.55, 2.5],

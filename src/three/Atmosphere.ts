@@ -156,12 +156,10 @@ export class Atmosphere {
     leafShape.quadraticCurveTo(-0.058, -0.02, 0, -0.09);
     const leafGeo = new THREE.ShapeGeometry(leafShape, 2);
 
-    const leafMat = new THREE.MeshStandardMaterial({
+    const leafMat = new THREE.MeshLambertMaterial({
       color: 0xffffff,
       emissive: new THREE.Color('#1a2218'),
       emissiveIntensity: 0.45,
-      roughness: 0.72,
-      metalness: 0.04,
       side: THREE.DoubleSide,
     });
 
@@ -274,10 +272,8 @@ export class Atmosphere {
     batGeo.setAttribute('aWingPhase', new THREE.InstancedBufferAttribute(wingPhases, 1));
     batGeo.setAttribute('aWingSpeed', new THREE.InstancedBufferAttribute(wingSpeeds, 1));
 
-    const batMat = new THREE.MeshStandardMaterial({
+    const batMat = new THREE.MeshBasicMaterial({
       color: 0x0e1320,
-      emissive: new THREE.Color('#070b16'),
-      roughness: 0.85,
       side: THREE.DoubleSide,
     });
     batMat.onBeforeCompile = (shader) => {
@@ -307,10 +303,10 @@ export class Atmosphere {
   }
 
   private applyBudgets(tier: QualityTier, reducedMotion: boolean): void {
-    const fireflyCount = tier === 'high' ? MAX_FIREFLIES : tier === 'medium' ? 32 : 12;
-    const leafCount = tier === 'high' ? MAX_LEAVES : tier === 'medium' ? 72 : 30;
+    const fireflyCount = tier === 'high' ? MAX_FIREFLIES : tier === 'medium' ? 32 : 16;
+    const leafCount = tier === 'high' ? MAX_LEAVES : tier === 'medium' ? 72 : 36;
     const wispCount = tier === 'high' ? MAX_WISPS : tier === 'medium' ? 8 : 4;
-    const batCount = tier === 'high' ? MAX_BATS : tier === 'medium' ? 10 : 5;
+    const batCount = tier === 'high' ? MAX_BATS : tier === 'medium' ? 10 : 6;
 
     this.fireflies.geometry.setDrawRange(0, fireflyCount);
     this.fireflies.visible = !reducedMotion;

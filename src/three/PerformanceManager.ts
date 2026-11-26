@@ -16,9 +16,7 @@ export function detectWebGLSupport(): boolean {
 
 export function detectInitialTier(): QualityTier {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
-  const cores = navigator.hardwareConcurrency || 4;
-  if (isMobile && cores <= 4) return 'low';
-  if (isMobile) return 'medium';
+  if (isMobile) return 'low';
   return 'high';
 }
 
@@ -53,20 +51,20 @@ export class PerformanceManager {
     this.frameTimes = [];
     this.sampleStart = now;
 
-    if (this.activeTier === 'high' && avg > 34) {
+    if (this.activeTier === 'high' && avg > 30) {
       this.activeTier = 'medium';
       this.onTierDowngrade?.('medium');
-    } else if (this.activeTier === 'medium' && avg > 48) {
+    } else if (this.activeTier === 'medium' && avg > 40) {
       this.activeTier = 'low';
       this.onTierDowngrade?.('low');
     }
   }
 
   public getMaxPixelRatio(): number {
-    const isMobile = window.innerWidth < 768;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
     if (this.activeTier === 'low') return 1;
-    if (this.activeTier === 'medium') return Math.min(window.devicePixelRatio || 1, 1.25);
-    return Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.5);
+    if (this.activeTier === 'medium') return Math.min(window.devicePixelRatio || 1, isMobile ? 1.05 : 1.25);
+    return Math.min(window.devicePixelRatio || 1, isMobile ? 1.15 : 1.5);
   }
 }
 
